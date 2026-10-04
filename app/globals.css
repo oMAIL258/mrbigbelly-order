@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F7F1E7;
+  --surface: #FFFFFF;
+  --surface-2: #FBF4E6;
+  --ink: #1E1A17;
+  --ink-2: #4A423C;
+  --ink-3: #8A7F75;
+  --rule: #E8DDC9;
+  --accent: #C0532F;
+  --accent-soft: #E8B48A;
+  --veg: #4F7A3A;
+}
+
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: 'Inter', 'Noto Sans Thai', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, .serif { font-family: 'Fraunces', Georgia, serif; }
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-medium transition active:scale-[0.98];
+}
+.btn-primary { @apply btn bg-[color:var(--accent)] text-white hover:brightness-110; }
+.btn-outline { @apply btn border border-[color:var(--rule)] bg-white; }
+.card { @apply rounded-2xl bg-white border border-[color:var(--rule)]; }
+.chip { @apply inline-flex items-center rounded-full border border-[color:var(--rule)] px-3 py-1 text-xs text-ink-2 bg-white; }
