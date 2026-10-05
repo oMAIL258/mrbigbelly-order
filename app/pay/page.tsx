@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart, useCartHydrated } from '@/lib/cart';
 import { useLiff } from '@/lib/liff';
@@ -17,12 +18,6 @@ export default function PayPage() {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (lines.length === 0) { router.replace('/'); return; }
-    if (!fulfilment) router.replace('/checkout');
-  }, [hydrated, lines, fulfilment, router]);
 
   function pickFile(f: File | null) {
     setFile(f);
@@ -65,8 +60,22 @@ export default function PayPage() {
     }
   }
 
-  if (!hydrated || !fulfilment) {
+  if (!hydrated) {
     return <><Header title="Pay with PromptPay" back="/checkout" /><div className="p-6 text-ink-3">Loading…</div></>;
+  }
+
+  if (lines.length === 0 || !fulfilment) {
+    return (
+      <>
+        <Header title="Pay with PromptPay" back="/checkout" />
+        <div className="p-10 text-center text-ink-3">
+          <p>{lines.length === 0 ? 'Your cart is empty.' : 'Please choose pickup or delivery first.'}</p>
+          <Link href={lines.length === 0 ? '/' : '/checkout'} className="btn-outline mt-4 inline-block">
+            {lines.length === 0 ? 'Browse menu' : 'Back to checkout'}
+          </Link>
+        </div>
+      </>
+    );
   }
 
   return (

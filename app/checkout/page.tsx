@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart, useCartHydrated } from '@/lib/cart';
 import { baht } from '@/lib/money';
@@ -19,10 +20,6 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-
-  useEffect(() => {
-    if (hydrated && lines.length === 0) router.replace('/');
-  }, [hydrated, lines, router]);
 
   const digits = phone.replace(/\D/g, '');
   const missing: string[] = [];
@@ -44,6 +41,18 @@ export default function CheckoutPage() {
   }
 
   if (!hydrated) return <><Header title="Checkout" back="/cart" /><div className="p-6 text-ink-3">Loading…</div></>;
+
+  if (lines.length === 0) {
+    return (
+      <>
+        <Header title="Checkout" back="/" />
+        <div className="p-10 text-center text-ink-3">
+          <p>Your cart is empty.</p>
+          <Link href="/" className="btn-outline mt-4 inline-block">Browse menu</Link>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

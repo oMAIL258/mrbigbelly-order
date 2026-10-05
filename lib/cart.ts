@@ -1,8 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { CartLine, Fulfilment } from './types';
+
+// The LINE in-app browser can refuse localStorage entirely (it throws rather
+// than returning null). Falling back to memory keeps the cart alive for the
+// session instead of silently emptying it between pages.
+const fallback = new Map<string, string>();
+const safeStorage = {
+  getItem: (k: string) => {
+    try { return window.localStorage.getItem(k); } catch { return fallback.get(k) ?? null; }
+  },
+  setItem: (k: string, v: string) => {
+    try { window.localStorage.setItem(k, v); } catch { fallback.set(k, v); }
+  },
+  removeItem: (k: string) => {
+    try { window.localStorage.removeItem(k); } catch { fallback.delete(k); }
+  },
+};
 
 type CartState = {
   lines: CartLine[];
@@ -41,6 +57,7 @@ export const useCart = create<CartState>()(
     }),
     {
       name: 'mbb-cart',
+      storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({ lines: s.lines, fulfilment: s.fulfilment }),
     },
   ),
