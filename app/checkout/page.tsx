@@ -1,10 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/lib/cart';
+import { useCart, useCartHydrated } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
-import type { Fulfilment } from '@/lib/types';
 
 const AREAS = [
   { slug: 'rwbk' as const, label: 'ซอยราชวินิตบางแก้ว' },
@@ -13,24 +12,38 @@ const AREAS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { lines, subtotal } = useCart();
+  const { lines, subtotal, setFulfilment } = useCart();
+  const hydrated = useCartHydrated();
   const [mode, setMode] = useState<'pickup' | 'delivery'>('pickup');
   const [area, setArea] = useState<'rwbk' | 'ntw7'>('rwbk');
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
-  useEffect(() => { if (lines.length === 0) router.replace('/'); }, [lines, router]);
+  useEffect(() => {
+    if (hydrated && lines.length === 0) router.replace('/');
+  }, [hydrated, lines, router]);
+
+  const digits = phone.replace(/\D/g, '');
+  const missing: string[] = [];
+  if (mode === 'delivery') {
+    if (!address.trim()) missing.push('address');
+    if (!name.trim()) missing.push('name');
+    if (digits.length < 9) missing.push('phone number');
+  }
+  const ready = missing.length === 0;
 
   function proceed() {
-    const f: Fulfilment = mode === 'pickup'
-      ? { mode: 'pickup' }
-      : { mode: 'delivery', area_slug: area, address, phone, name };
-    sessionStorage.setItem('mbb-fulfilment', JSON.stringify(f));
+    if (!ready) return;
+    setFulfilment(
+      mode === 'pickup'
+        ? { mode: 'pickup' }
+        : { mode: 'delivery', area_slug: area, address: address.trim(), phone: phone.trim(), name: name.trim() },
+    );
     router.push('/pay');
   }
 
-  const deliveryOk = mode === 'pickup' || (address.trim() && name.trim() && phone.trim().length >= 9);
+  if (!hydrated) return <><Header title="Checkout" back="/cart" /><div className="p-6 text-ink-3">Loading…</div></>;
 
   return (
     <>
@@ -94,7 +107,10 @@ export default function CheckoutPage() {
           <span className="text-ink-2">Total</span>
           <span className="font-medium">{baht(subtotal())}</span>
         </div>
-        <button onClick={proceed} disabled={!deliveryOk} className="btn-primary w-full disabled:opacity-50">
+        {!ready && (
+          <p className="text-accent text-xs mb-2">Please add your {missing.join(', ')} to continue.</p>
+        )}
+        <button onClick={proceed} disabled={!ready} className="btn-primary w-full disabled:opacity-50">
           Continue to payment
         </button>
       </div>

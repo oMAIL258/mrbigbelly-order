@@ -1,18 +1,17 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/lib/cart';
+import { useCart, useCartHydrated } from '@/lib/cart';
 import { useLiff } from '@/lib/liff';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
-import type { Fulfilment } from '@/lib/types';
 
 export default function PayPage() {
   const router = useRouter();
-  const { lines, subtotal, clear } = useCart();
+  const { lines, fulfilment, subtotal, clear } = useCart();
+  const hydrated = useCartHydrated();
   const { profile } = useLiff();
-  const [fulfilment, setFulfilment] = useState<Fulfilment | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -20,11 +19,10 @@ export default function PayPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (lines.length === 0) { router.replace('/'); return; }
-    const raw = sessionStorage.getItem('mbb-fulfilment');
-    if (!raw) { router.replace('/checkout'); return; }
-    setFulfilment(JSON.parse(raw));
-  }, [lines, router]);
+    if (!fulfilment) router.replace('/checkout');
+  }, [hydrated, lines, fulfilment, router]);
 
   function pickFile(f: File | null) {
     setFile(f);
@@ -36,7 +34,8 @@ export default function PayPage() {
     setSubmitting(true); setErr(null);
     try {
       const sb = supabase();
-      const path = `pending/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${file.name.split('.').pop() ?? 'jpg'}`;
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `pending/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const up = await sb.storage.from('slips').upload(path, file, { contentType: file.type, upsert: false });
       if (up.error) throw up.error;
 
@@ -59,12 +58,15 @@ export default function PayPage() {
       if (!res.ok) throw new Error(await res.text());
       const { order_id } = (await res.json()) as { order_id: string };
       clear();
-      sessionStorage.removeItem('mbb-fulfilment');
       router.replace(`/order/${order_id}`);
     } catch (e) {
       setErr((e as Error).message);
       setSubmitting(false);
     }
+  }
+
+  if (!hydrated || !fulfilment) {
+    return <><Header title="Pay with PromptPay" back="/checkout" /><div className="p-6 text-ink-3">Loading…</div></>;
   }
 
   return (
@@ -103,6 +105,7 @@ export default function PayPage() {
 
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
         {err && <div className="text-sm text-accent mb-2">Something went wrong: {err}</div>}
+        {!file && <p className="text-ink-3 text-xs mb-2">Upload your slip to finish the order.</p>}
         <button onClick={submit} disabled={!file || submitting} className="btn-primary w-full disabled:opacity-50">
           {submitting ? 'Sending…' : 'Submit order'}
         </button>

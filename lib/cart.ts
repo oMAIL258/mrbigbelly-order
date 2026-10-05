@@ -1,13 +1,16 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CartLine } from './types';
+import type { CartLine, Fulfilment } from './types';
 
 type CartState = {
   lines: CartLine[];
+  fulfilment: Fulfilment | null;
   add: (line: CartLine) => void;
   remove: (key: string) => void;
   setQty: (key: string, qty: number) => void;
+  setFulfilment: (f: Fulfilment) => void;
   clear: () => void;
   subtotal: () => number;
 };
@@ -16,20 +19,43 @@ export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       lines: [],
+      fulfilment: null,
       add: (line) => set((s) => {
         const existing = s.lines.find((l) => l.key === line.key);
-        if (existing) {
-          return { lines: s.lines.map((l) => l.key === line.key ? { ...l, qty: l.qty + line.qty, line_total_satang: (l.qty + line.qty) * (l.line_total_satang / l.qty) } : l) };
-        }
-        return { lines: [...s.lines, line] };
+        if (!existing) return { lines: [...s.lines, line] };
+        const unit = existing.line_total_satang / existing.qty;
+        const qty = existing.qty + line.qty;
+        return { lines: s.lines.map((l) => l.key === line.key ? { ...l, qty, line_total_satang: unit * qty } : l) };
       }),
       remove: (key) => set((s) => ({ lines: s.lines.filter((l) => l.key !== key) })),
       setQty: (key, qty) => set((s) => ({
-        lines: s.lines.map((l) => l.key === key ? { ...l, qty, line_total_satang: qty * (l.line_total_satang / l.qty) } : l).filter((l) => l.qty > 0),
+        lines: s.lines.flatMap((l) => {
+          if (l.key !== key) return [l];
+          if (qty < 1) return [];
+          return [{ ...l, qty, line_total_satang: (l.line_total_satang / l.qty) * qty }];
+        }),
       })),
-      clear: () => set({ lines: [] }),
+      setFulfilment: (fulfilment) => set({ fulfilment }),
+      clear: () => set({ lines: [], fulfilment: null }),
       subtotal: () => get().lines.reduce((n, l) => n + l.line_total_satang, 0),
     }),
-    { name: 'mbb-cart' },
+    {
+      name: 'mbb-cart',
+      partialize: (s) => ({ lines: s.lines, fulfilment: s.fulfilment }),
+    },
   ),
 );
+
+// Guard pages against the persist rehydration race: on a fresh page load the
+// store starts empty, so an "empty cart -> go home" check fires before the
+// saved cart arrives and bounces the customer out mid-checkout.
+export function useCartHydrated() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    const p = useCart.persist;
+    if (!p) { setHydrated(true); return; }
+    if (p.hasHydrated()) setHydrated(true);
+    return p.onFinishHydration(() => setHydrated(true));
+  }, []);
+  return hydrated;
+}
