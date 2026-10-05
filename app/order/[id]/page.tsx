@@ -7,6 +7,7 @@ import { Header } from '@/components/Header';
 
 type Order = {
   id: string;
+  short_code: string | null;
   status: 'new' | 'confirmed' | 'ready' | 'done' | 'rejected';
   total_satang: number;
   fulfilment_mode: 'pickup' | 'delivery';
@@ -15,12 +16,12 @@ type Order = {
   created_at: string;
 };
 
-const STEPS: { key: Order['status']; label: string }[] = [
-  { key: 'new', label: 'Waiting for the shop' },
-  { key: 'confirmed', label: 'Preparing' },
-  { key: 'ready', label: 'Ready' },
-  { key: 'done', label: 'Picked up / Delivered' },
-];
+const STEPS = [
+  { key: 'new', label: 'Waiting for the shop', note: 'We’re checking your payment slip.' },
+  { key: 'confirmed', label: 'Preparing your order', note: 'The kitchen is on it.' },
+  { key: 'ready', pickup: 'Ready for pickup', delivery: 'Out for delivery' },
+  { key: 'done', pickup: 'Picked up', delivery: 'Delivered' },
+] as const;
 
 export default function OrderStatusPage() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +48,7 @@ export default function OrderStatusPage() {
     return (
       <>
         <Header title="Order" back="/" />
-        <div className="p-6 text-center">
+        <div className="p-6 text-center step-rise">
           <div className="serif text-xl text-accent">Order declined</div>
           {order.reject_reason && <p className="text-ink-2 mt-2 text-sm">{order.reject_reason}</p>}
           <p className="text-ink-3 text-xs mt-4">If you were charged, the shop will arrange a refund via LINE.</p>
@@ -57,28 +58,50 @@ export default function OrderStatusPage() {
   }
 
   const idx = STEPS.findIndex((s) => s.key === order.status);
+  const labelFor = (s: (typeof STEPS)[number]) =>
+    'label' in s ? s.label : order.fulfilment_mode === 'pickup' ? s.pickup : s.delivery;
+  const current = STEPS[idx];
 
   return (
     <>
       <Header title="Order status" back="/" />
-      <section className="px-4 py-6 text-center">
-        <div className="serif text-2xl">{STEPS[idx]?.label ?? order.status}</div>
+      <section className="px-4 py-6 text-center step-rise">
+        {order.short_code && <div className="text-ink-3 text-xs">Order {order.short_code}</div>}
+        <div className="serif text-2xl mt-1">{current ? labelFor(current) : order.status}</div>
         {order.status === 'confirmed' && order.prep_minutes && (
           <p className="text-ink-2 text-sm mt-2">
             Ready in about <strong>{order.prep_minutes} min</strong>
           </p>
         )}
+        {order.status === 'ready' && (
+          <p className="text-ink-2 text-sm mt-2">
+            {order.fulfilment_mode === 'pickup' ? 'Come and grab it!' : 'On the way to you now.'}
+          </p>
+        )}
       </section>
 
       <ol className="px-4 space-y-2">
-        {STEPS.map((s, i) => (
-          <li key={s.key} className={`flex items-center gap-3 rounded-xl border p-3 ${i <= idx ? 'border-accent bg-accent-soft/20' : 'border-rule bg-white'}`}>
-            <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${i <= idx ? 'bg-accent text-white' : 'bg-surface-2 text-ink-3'}`}>
-              {i < idx ? '✓' : i + 1}
-            </span>
-            <span className="text-sm">{s.label}</span>
-          </li>
-        ))}
+        {STEPS.map((s, i) => {
+          const done = i < idx;
+          const activeStep = i === idx;
+          return (
+            <li
+              key={s.key}
+              className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                i <= idx ? 'border-accent bg-accent-soft/20' : 'border-rule bg-white'
+              } ${activeStep ? 'sweep' : ''}`}
+            >
+              <span
+                className={`h-6 w-6 rounded-full flex items-center justify-center text-xs shrink-0 ${
+                  i <= idx ? 'bg-accent text-white' : 'bg-surface-2 text-ink-3'
+                } ${activeStep ? 'step-active' : ''}`}
+              >
+                {done ? '✓' : i + 1}
+              </span>
+              <span className="text-sm">{labelFor(s)}</span>
+            </li>
+          );
+        })}
       </ol>
 
       <section className="px-4 py-6 mt-2 border-t border-rule">

@@ -1,5 +1,14 @@
 export type Category = { id: string; slug: string; name_en: string; name_th: string | null; sort: number };
 
+export type StoreSettings = {
+  id: string;
+  open_time: string;
+  close_time: string;
+  default_prep_minutes: number;
+  accepting_orders: boolean;
+  closed_message: string | null;
+};
+
 export type MenuItem = {
   id: string;
   category_id: string;

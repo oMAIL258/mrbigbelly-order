@@ -23,10 +23,12 @@ const safeStorage = {
 type CartState = {
   lines: CartLine[];
   fulfilment: Fulfilment | null;
+  lastCategoryId: string | null;
   add: (line: CartLine) => void;
   remove: (key: string) => void;
   setQty: (key: string, qty: number) => void;
   setFulfilment: (f: Fulfilment) => void;
+  setLastCategoryId: (id: string) => void;
   clear: () => void;
   subtotal: () => number;
 };
@@ -36,6 +38,7 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       lines: [],
       fulfilment: null,
+      lastCategoryId: null,
       add: (line) => set((s) => {
         const existing = s.lines.find((l) => l.key === line.key);
         if (!existing) return { lines: [...s.lines, line] };
@@ -52,13 +55,14 @@ export const useCart = create<CartState>()(
         }),
       })),
       setFulfilment: (fulfilment) => set({ fulfilment }),
+      setLastCategoryId: (lastCategoryId) => set({ lastCategoryId }),
       clear: () => set({ lines: [], fulfilment: null }),
       subtotal: () => get().lines.reduce((n, l) => n + l.line_total_satang, 0),
     }),
     {
       name: 'mbb-cart',
       storage: createJSONStorage(() => safeStorage),
-      partialize: (s) => ({ lines: s.lines, fulfilment: s.fulfilment }),
+      partialize: (s) => ({ lines: s.lines, fulfilment: s.fulfilment, lastCategoryId: s.lastCategoryId }),
     },
   ),
 );

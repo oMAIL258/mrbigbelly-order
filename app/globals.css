@@ -3,16 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --bg: #F7F1E7;
+  --bg: #FFFCF7;
   --surface: #FFFFFF;
-  --surface-2: #FBF4E6;
-  --ink: #1E1A17;
-  --ink-2: #4A423C;
-  --ink-3: #8A7F75;
-  --rule: #E8DDC9;
-  --accent: #C0532F;
-  --accent-soft: #E8B48A;
-  --veg: #4F7A3A;
+  --surface-2: #F2F7FB;
+  --ink: #0F2436;
+  --ink-2: #3D556B;
+  --ink-3: #7A8C9B;
+  --rule: #DCE6EF;
+  --accent: #145DA0;
+  --accent-soft: #9EC6E6;
+  --veg: #2E7D5B;
 }
 
 html, body { background: var(--bg); color: var(--ink); }
@@ -26,3 +26,27 @@ h1, h2, h3, .serif { font-family: 'Fraunces', Georgia, serif; }
 .btn-outline { @apply btn border border-[color:var(--rule)] bg-white; }
 .card { @apply rounded-2xl bg-white border border-[color:var(--rule)]; }
 .chip { @apply inline-flex items-center rounded-full border border-[color:var(--rule)] px-3 py-1 text-xs text-ink-2 bg-white; }
+
+@keyframes mbb-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.92); }
+}
+@keyframes mbb-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes mbb-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.step-active { animation: mbb-pulse 1.6s ease-in-out infinite; }
+.step-rise { animation: mbb-rise 0.35s ease-out both; }
+.sweep { position: relative; overflow: hidden; }
+.sweep::after {
+  content: ''; position: absolute; inset: 0; width: 33%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: mbb-sweep 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-active, .step-rise, .sweep::after { animation: none; }
+}

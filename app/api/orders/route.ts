@@ -28,6 +28,14 @@ export async function POST(req: NextRequest) {
 
   const sb = supabaseServer();
 
+  const { data: settings } = await sb.from('store_settings').select('accepting_orders, closed_message').limit(1).maybeSingle();
+  if (settings && !settings.accepting_orders) {
+    return NextResponse.json(
+      { error: settings.closed_message?.trim() || 'The shop is not taking orders right now.' },
+      { status: 409 },
+    );
+  }
+
   let customer_id: string | null = null;
   if (body.line_user_id) {
     const upserted = await sb
