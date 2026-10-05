@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Order from Mr. Big Belly in Bangkok.',
 };
 export const viewport: Viewport = {
-  width: 'device-width', initialScale: 1, maximumScale: 1, themeColor: '#F7F1E7',
+  width: 'device-width', initialScale: 1, maximumScale: 1, themeColor: '#FFFCF7',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

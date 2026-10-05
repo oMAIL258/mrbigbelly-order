@@ -13,7 +13,7 @@ export default function PayPage() {
   const { lines, fulfilment, subtotal, clear } = useCart();
   const setActiveOrderId = useCart((s) => s.setActiveOrderId);
   const hydrated = useCartHydrated();
-  const { profile } = useLiff();
+  const { ready: liffReady, profile } = useLiff();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +112,22 @@ export default function PayPage() {
             <button onClick={() => pickFile(null)} className="text-ink-3 text-xs mt-2 underline">Choose a different image</button>
           </div>
         )}
+      </section>
+
+      <section className="px-4 pb-2">
+        {liffReady && (profile ? (
+          <p className="text-ink-3 text-xs">
+            Signed in as {profile.displayName}. We&rsquo;ll message you on LINE as your order moves along.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-accent bg-accent-soft/20 p-3">
+            <div className="text-sm font-medium">We can&rsquo;t message you about this order</div>
+            <p className="text-ink-2 text-xs mt-1">
+              You&rsquo;re not connected to LINE, so there is nowhere to send updates. Open the shop from the
+              Mr. Big Belly menu in LINE if you&rsquo;d like them. Your order will still go through.
+            </p>
+          </div>
+        ))}
       </section>
 
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
