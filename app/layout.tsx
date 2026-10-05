@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { LiffProvider } from '@/lib/liff';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
-        <div className="mx-auto max-w-md min-h-screen bg-bg">{children}</div>
+        <LiffProvider>
+          <div className="mx-auto max-w-md min-h-screen bg-bg">{children}</div>
+        </LiffProvider>
       </body>
     </html>
   );
