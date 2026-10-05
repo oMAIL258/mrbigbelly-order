@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { baht } from '@/lib/money';
 import { useCart } from '@/lib/cart';
 import { Header } from '@/components/Header';
+import { OngoingOrder } from '@/components/OngoingOrder';
 import type { Category, MenuItem, StoreSettings } from '@/lib/types';
 
 export default function MenuPage() {
@@ -52,6 +53,8 @@ export default function MenuPage() {
         <h1 className="serif text-2xl leading-tight">Mr. Big Belly</h1>
         <p className="text-ink-3 text-sm">Juice &amp; More · Bangkok</p>
       </section>
+
+      <OngoingOrder />
 
       {closed && (
         <div className="mx-4 mb-2 rounded-xl border border-accent bg-accent-soft/25 p-3">

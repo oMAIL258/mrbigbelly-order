@@ -4,6 +4,8 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
+import { StatusArt } from '@/components/StatusArt';
+import { useCart } from '@/lib/cart';
 
 type Order = {
   id: string;
@@ -26,6 +28,7 @@ const STEPS = [
 export default function OrderStatusPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
+  const setActiveOrderId = useCart((s) => s.setActiveOrderId);
 
   useEffect(() => {
     const sb = supabase();
@@ -41,6 +44,14 @@ export default function OrderStatusPage() {
       .subscribe();
     return () => { sb.removeChannel(channel); };
   }, [id]);
+
+  // Opening this page is itself a claim that the order is the live one, which
+  // covers customers who follow the LINE link on a phone that never held the
+  // cart. Finished orders are forgotten so the menu banner disappears.
+  useEffect(() => {
+    if (!order) return;
+    setActiveOrderId(order.status === 'done' || order.status === 'rejected' ? null : order.id);
+  }, [order, setActiveOrderId]);
 
   if (!order) return <><Header back="/" /><div className="p-6 text-ink-3">Loading your order…</div></>;
 
@@ -65,7 +76,11 @@ export default function OrderStatusPage() {
   return (
     <>
       <Header title="Order status" back="/" />
-      <section className="px-4 py-6 text-center step-rise">
+      <section className="px-4 pt-5 pb-2">
+        <StatusArt status={order.status} mode={order.fulfilment_mode} />
+      </section>
+
+      <section className="px-4 pb-6 text-center step-rise">
         {order.short_code && <div className="text-ink-3 text-xs">Order {order.short_code}</div>}
         <div className="serif text-2xl mt-1">{current ? labelFor(current) : order.status}</div>
         {order.status === 'confirmed' && order.prep_minutes && (

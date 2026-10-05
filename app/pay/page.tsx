@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 export default function PayPage() {
   const router = useRouter();
   const { lines, fulfilment, subtotal, clear } = useCart();
+  const setActiveOrderId = useCart((s) => s.setActiveOrderId);
   const hydrated = useCartHydrated();
   const { profile } = useLiff();
   const [file, setFile] = useState<File | null>(null);
@@ -52,6 +53,7 @@ export default function PayPage() {
       });
       if (!res.ok) throw new Error(await res.text());
       const { order_id } = (await res.json()) as { order_id: string };
+      setActiveOrderId(order_id);
       clear();
       router.replace(`/order/${order_id}`);
     } catch (e) {

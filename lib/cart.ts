@@ -24,11 +24,13 @@ type CartState = {
   lines: CartLine[];
   fulfilment: Fulfilment | null;
   lastCategoryId: string | null;
+  activeOrderId: string | null;
   add: (line: CartLine) => void;
   remove: (key: string) => void;
   setQty: (key: string, qty: number) => void;
   setFulfilment: (f: Fulfilment) => void;
   setLastCategoryId: (id: string) => void;
+  setActiveOrderId: (id: string | null) => void;
   clear: () => void;
   subtotal: () => number;
 };
@@ -39,6 +41,7 @@ export const useCart = create<CartState>()(
       lines: [],
       fulfilment: null,
       lastCategoryId: null,
+      activeOrderId: null,
       add: (line) => set((s) => {
         const existing = s.lines.find((l) => l.key === line.key);
         if (!existing) return { lines: [...s.lines, line] };
@@ -56,13 +59,20 @@ export const useCart = create<CartState>()(
       })),
       setFulfilment: (fulfilment) => set({ fulfilment }),
       setLastCategoryId: (lastCategoryId) => set({ lastCategoryId }),
+      // Survives closing LINE, so the menu can offer a way back to a live order.
+      setActiveOrderId: (activeOrderId) => set({ activeOrderId }),
       clear: () => set({ lines: [], fulfilment: null }),
       subtotal: () => get().lines.reduce((n, l) => n + l.line_total_satang, 0),
     }),
     {
       name: 'mbb-cart',
       storage: createJSONStorage(() => safeStorage),
-      partialize: (s) => ({ lines: s.lines, fulfilment: s.fulfilment, lastCategoryId: s.lastCategoryId }),
+      partialize: (s) => ({
+        lines: s.lines,
+        fulfilment: s.fulfilment,
+        lastCategoryId: s.lastCategoryId,
+        activeOrderId: s.activeOrderId,
+      }),
     },
   ),
 );
