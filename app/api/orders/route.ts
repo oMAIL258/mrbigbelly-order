@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Fulfilment } from '@/lib/types';
+import { alertStaff } from '@/lib/line-server';
 
 type OptionLabel = { group: string; label: string; price_delta_satang: number };
 type LinePayload = {
@@ -87,6 +88,16 @@ export async function POST(req: NextRequest) {
   }
 
   await sb.from('payment_slips').insert({ order_id, storage_path: body.slip_path });
+
+  const { data: order } = await sb.from('orders').select('short_code').eq('id', order_id).maybeSingle();
+  const { data: staff } = await sb.from('staff_alerts').select('line_user_id');
+  const items = body.lines.map((l) => `• ${l.qty}× ${l.name}`).join('\n');
+  await alertStaff(
+    `🔔 NEW ORDER ${order?.short_code ?? ''}\n`
+    + `${body.fulfilment.mode === 'pickup' ? 'Pickup' : 'Delivery'} · ฿${(body.total_satang / 100).toLocaleString('en-US')}\n\n`
+    + `${items}\n\nOpen the order board to accept it.`,
+    ((staff ?? []) as { line_user_id: string }[]).map((r) => r.line_user_id),
+  );
 
   return NextResponse.json({ order_id });
 }
