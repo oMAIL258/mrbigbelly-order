@@ -71,10 +71,11 @@ export default function DishPage() {
     add({
       key,
       item_id: item.id,
-      name: pickName(lang, item.name_en, item.name_th),
-      // The ticket must not change language with the customer, or a Thai
-      // kitchen gets an English docket because a tourist switched the toggle.
-      name_kitchen: item.name_th?.trim() || item.name_en,
+      // Both, rather than whichever was on screen: the customer can switch
+      // language with the line already in the cart, and the kitchen ticket
+      // must stay Thai either way.
+      name_en: item.name_en,
+      name_th: item.name_th,
       base_price_satang: item.price_satang,
       qty,
       option_ids: extras.map((e) => e.id),

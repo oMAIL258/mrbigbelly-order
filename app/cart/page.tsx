@@ -4,10 +4,11 @@ import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
+import { lineName } from '@/lib/cart-names';
 
 export default function CartPage() {
   const { lines, setQty, remove, subtotal } = useCart();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   return (
     <>
       <Header title={t.yourCart} back="/" />
@@ -23,7 +24,7 @@ export default function CartPage() {
               <li key={l.key} className="card p-3">
                 <div className="flex justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="serif text-base">{l.name}</div>
+                    <div className="serif text-base">{lineName(lang, l)}</div>
                     {l.option_labels.length > 0 && (
                       <ul className="text-ink-3 text-xs mt-1 space-y-0.5">
                         {l.option_labels.map((o, i) => <li key={i}>· {o.label}</li>)}

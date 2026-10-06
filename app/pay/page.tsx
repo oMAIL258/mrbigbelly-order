@@ -8,6 +8,7 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
+import { kitchenName } from '@/lib/cart-names';
 
 export default function PayPage() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function PayPage() {
           line_user_id: profile?.userId ?? null,
           display_name: profile?.displayName ?? null,
           lines: lines.map((l) => ({
-            item_id: l.item_id, name: l.name_kitchen ?? l.name, base_price_satang: l.base_price_satang,
+            item_id: l.item_id, name: kitchenName(l), base_price_satang: l.base_price_satang,
             qty: l.qty, options: l.option_labels, option_ids: l.option_ids,
             line_total_satang: l.line_total_satang, note: l.note ?? null,
           })),
