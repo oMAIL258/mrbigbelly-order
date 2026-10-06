@@ -8,7 +8,7 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
-import { kitchenName } from '@/lib/cart-names';
+import { kitchenName } from '@/lib/names';
 
 export default function PayPage() {
   const router = useRouter();

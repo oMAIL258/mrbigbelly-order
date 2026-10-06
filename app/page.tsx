@@ -6,7 +6,8 @@ import { baht } from '@/lib/money';
 import { useCart } from '@/lib/cart';
 import { Header } from '@/components/Header';
 import { OngoingOrder } from '@/components/OngoingOrder';
-import { useLang, pickName, otherName } from '@/lib/i18n';
+import { useLang, pickName } from '@/lib/i18n';
+import { dishTitle, dishSubtitle } from '@/lib/names';
 import type { Category, MenuItem, StoreSettings } from '@/lib/types';
 
 export default function MenuPage() {
@@ -88,9 +89,9 @@ export default function MenuPage() {
           <li key={it.id}>
             <Link href={`/dish/${it.id}`} className="card flex gap-3 p-3 hover:border-ink-3">
               <div className="flex-1 min-w-0">
-                <div className="serif text-base leading-snug">{pickName(lang, it.name_en, it.name_th)}</div>
-                {otherName(lang, it.name_en, it.name_th) && (
-                  <div className="text-ink-3 text-xs">{otherName(lang, it.name_en, it.name_th)}</div>
+                <div className="serif text-base leading-snug">{dishTitle(lang, it.name_en, it.name_th)}</div>
+                {dishSubtitle(lang, it.name_en, it.name_th) && (
+                  <div className="text-ink-3 text-xs">{dishSubtitle(lang, it.name_en, it.name_th)}</div>
                 )}
                 {it.description && <p className="text-ink-2 text-sm mt-1 line-clamp-2">{it.description}</p>}
                 <div className="mt-2 text-ink font-medium">{baht(it.price_satang)}</div>

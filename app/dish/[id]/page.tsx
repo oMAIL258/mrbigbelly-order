@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
-import { useLang, pickName, otherName } from '@/lib/i18n';
+import { useLang } from '@/lib/i18n';
+import { dishTitle, dishSubtitle } from '@/lib/names';
 import type { MenuItem, OptionGroup, OptionRow } from '@/lib/types';
 
 export default function DishPage() {
@@ -90,12 +91,12 @@ export default function DishPage() {
 
   return (
     <>
-      <Header title={pickName(lang, item.name_en, item.name_th)} back="/" />
+      <Header title={dishTitle(lang, item.name_en, item.name_th)} back="/" />
       {item.photo_url && <img src={item.photo_url} alt="" className="w-full h-56 object-cover" />}
       <div className="px-4 py-4">
-        <h1 className="serif text-2xl">{pickName(lang, item.name_en, item.name_th)}</h1>
-        {otherName(lang, item.name_en, item.name_th) && (
-          <div className="text-ink-3 text-sm">{otherName(lang, item.name_en, item.name_th)}</div>
+        <h1 className="serif text-2xl">{dishTitle(lang, item.name_en, item.name_th)}</h1>
+        {dishSubtitle(lang, item.name_en, item.name_th) && (
+          <div className="text-ink-3 text-sm">{dishSubtitle(lang, item.name_en, item.name_th)}</div>
         )}
         {item.description && <p className="text-ink-2 text-sm mt-2">{item.description}</p>}
         <div className="mt-2 text-ink font-medium">{baht(item.price_satang)}</div>

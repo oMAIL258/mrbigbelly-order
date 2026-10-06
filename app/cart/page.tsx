@@ -4,7 +4,7 @@ import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
-import { lineName } from '@/lib/cart-names';
+import { lineName } from '@/lib/names';
 
 export default function CartPage() {
   const { lines, setQty, remove, subtotal } = useCart();
