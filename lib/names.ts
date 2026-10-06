@@ -47,3 +47,51 @@ export function kitchenName(l: CartLine): string {
   if (thai && !readsAsIngredients(thai)) return thai;
   return l.name_en ?? l.name_kitchen ?? l.name ?? '';
 }
+
+// A dish's option groups and choices are stored once, in English, because the
+// kitchen sheets read that way and an order ticket must not change wording with
+// the customer. These are the generic ones a Thai customer should not have to
+// read in English. A juice keeps its English name, which is what the menu board
+// calls it. Anything missing falls back to the English, so a choice added later
+// shows up untranslated rather than blank.
+const GROUP_TH: Record<string, string> = {
+  'Base': 'เลือกแบบ',
+  'Bowl base': 'เลือกเบส',
+  'Rice': 'เลือกข้าว',
+  'Pasta': 'เลือกเส้นพาสต้า',
+  'Chicken': 'เลือกไก่',
+  'Milk': 'เลือกนม',
+  'Temperature': 'ร้อนหรือเย็น',
+  'Choose a juice': 'เลือกน้ำผลไม้',
+  'Choose 6 juices': 'เลือกน้ำผลไม้ 6 แก้ว',
+};
+
+const OPTION_TH: Record<string, string> = {
+  'Waiwai Noodles': 'เส้นไวไว',
+  'Thai Jasmine Rice': 'ข้าวหอมมะลิ',
+  'Japanese Brown Rice': 'ข้าวกล้องญี่ปุ่น',
+  'Grilled chicken': 'ไก่ย่าง',
+  'Fried chicken': 'ไก่ทอด',
+  'Spaghetti': 'สปาเกตตี้',
+  'Penne': 'เพนเน่',
+  'Fettuccine': 'เฟตตูชินี',
+  'Hot': 'ร้อน',
+  'Iced': 'เย็น',
+  'Milk': 'นม',
+  'Oat milk': 'นมโอ๊ต',
+  'Almond milk': 'นมอัลมอนด์',
+  'Ginger': 'ขิง',
+  'Fingerroot': 'กระชาย',
+  'Greek Yoghurt': 'กรีกโยเกิร์ต',
+  'Acai Mixed Berries': 'อาซาอิ มิกซ์เบอร์รี่',
+};
+
+/** The heading over a set of choices, such as "เลือกข้าว". */
+export function optionGroupName(lang: Lang, name: string): string {
+  return lang === 'th' ? GROUP_TH[name] ?? name : name;
+}
+
+/** One choice within it, such as "ข้าวหอมมะลิ". */
+export function optionLabel(lang: Lang, label: string): string {
+  return lang === 'th' ? OPTION_TH[label] ?? label : label;
+}

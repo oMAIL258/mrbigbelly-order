@@ -4,7 +4,7 @@ import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
-import { lineName } from '@/lib/names';
+import { lineName, optionLabel } from '@/lib/names';
 
 export default function CartPage() {
   const { lines, setQty, remove, subtotal } = useCart();
@@ -27,7 +27,7 @@ export default function CartPage() {
                     <div className="serif text-base">{lineName(lang, l)}</div>
                     {l.option_labels.length > 0 && (
                       <ul className="text-ink-3 text-xs mt-1 space-y-0.5">
-                        {l.option_labels.map((o, i) => <li key={i}>· {o.label}</li>)}
+                        {l.option_labels.map((o, i) => <li key={i}>· {optionLabel(lang, o.label)}</li>)}
                       </ul>
                     )}
                     {l.note && <div className="text-ink-3 text-xs mt-1 italic">“{l.note}”</div>}

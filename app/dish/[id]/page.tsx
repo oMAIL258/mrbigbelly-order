@@ -6,7 +6,7 @@ import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
-import { dishTitle, dishSubtitle } from '@/lib/names';
+import { dishTitle, dishSubtitle, optionGroupName, optionLabel } from '@/lib/names';
 import type { MenuItem, OptionGroup, OptionRow } from '@/lib/types';
 
 export default function DishPage() {
@@ -109,7 +109,7 @@ export default function DishPage() {
         return (
           <section key={g.id} className="px-4 py-3 border-t border-rule">
             <div className="flex items-baseline justify-between mb-2">
-              <h2 className="serif text-lg">{g.name}</h2>
+              <h2 className="serif text-lg">{optionGroupName(lang, g.name)}</h2>
               <span className={`text-xs ${ok ? 'text-ink-3' : 'text-accent'}`}>
                 {g.pick_kind === 'one' && t.pickOne}
                 {g.pick_kind === 'exact' && t.pickN(g.pick_count ?? 1, n)}
@@ -127,7 +127,7 @@ export default function DishPage() {
                         selected ? 'border-accent bg-accent-soft/30' : 'border-rule bg-white'
                       }`}
                     >
-                      <span>{o.label}</span>
+                      <span>{optionLabel(lang, o.label)}</span>
                       {o.price_delta_satang !== 0 && (
                         <span className="text-ink-3">{o.price_delta_satang > 0 ? '+' : ''}{baht(o.price_delta_satang)}</span>
                       )}
