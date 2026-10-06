@@ -92,10 +92,13 @@ export async function POST(req: NextRequest) {
   const { data: order } = await sb.from('orders').select('short_code').eq('id', order_id).maybeSingle();
   const { data: staff } = await sb.from('staff_alerts').select('line_user_id');
   const items = body.lines.map((l) => `• ${l.qty}× ${l.name}`).join('\n');
+  const pickup = body.fulfilment.mode === 'pickup';
+  const total = `฿${(body.total_satang / 100).toLocaleString('en-US')}`;
   await alertStaff(
-    `🔔 NEW ORDER ${order?.short_code ?? ''}\n`
-    + `${body.fulfilment.mode === 'pickup' ? 'Pickup' : 'Delivery'} · ฿${(body.total_satang / 100).toLocaleString('en-US')}\n\n`
-    + `${items}\n\nOpen the order board to accept it.`,
+    `🔔 ออเดอร์ใหม่ / NEW ORDER ${order?.short_code ?? ''}\n`
+    + `${pickup ? 'รับที่ร้าน / Pickup' : 'จัดส่ง / Delivery'} · ${total}\n\n`
+    + `${items}\n\n`
+    + 'เปิดหน้าออเดอร์เพื่อรับออเดอร์\nOpen the order board to accept it.',
     ((staff ?? []) as { line_user_id: string }[]).map((r) => r.line_user_id),
   );
 

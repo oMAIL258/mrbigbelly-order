@@ -6,6 +6,7 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { StatusArt } from '@/components/StatusArt';
 import { useCart } from '@/lib/cart';
+import { useLang } from '@/lib/i18n';
 
 type Order = {
   id: string;
@@ -18,17 +19,13 @@ type Order = {
   created_at: string;
 };
 
-const STEPS = [
-  { key: 'new', label: 'Waiting for the shop', note: 'We’re checking your payment slip.' },
-  { key: 'confirmed', label: 'Preparing your order', note: 'The kitchen is on it.' },
-  { key: 'ready', pickup: 'Ready for pickup', delivery: 'Out for delivery' },
-  { key: 'done', pickup: 'Picked up', delivery: 'Delivered' },
-] as const;
+const STEP_KEYS = ['new', 'confirmed', 'ready', 'done'] as const;
 
 export default function OrderStatusPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const setActiveOrderId = useCart((s) => s.setActiveOrderId);
+  const { t } = useLang();
 
   useEffect(() => {
     const sb = supabase();
@@ -53,55 +50,55 @@ export default function OrderStatusPage() {
     setActiveOrderId(order.status === 'done' || order.status === 'rejected' ? null : order.id);
   }, [order, setActiveOrderId]);
 
-  if (!order) return <><Header back="/" /><div className="p-6 text-ink-3">Loading your order…</div></>;
+  if (!order) return <><Header back="/" /><div className="p-6 text-ink-3">{t.loadingOrder}</div></>;
 
   if (order.status === 'rejected') {
     return (
       <>
-        <Header title="Order" back="/" />
+        <Header title={t.orderStatus} back="/" />
         <div className="p-6 text-center step-rise">
-          <div className="serif text-xl text-accent">Order declined</div>
+          <div className="serif text-xl text-accent">{t.declined}</div>
           {order.reject_reason && <p className="text-ink-2 mt-2 text-sm">{order.reject_reason}</p>}
-          <p className="text-ink-3 text-xs mt-4">If you were charged, the shop will arrange a refund via LINE.</p>
+          <p className="text-ink-3 text-xs mt-4">{t.declinedNote}</p>
         </div>
       </>
     );
   }
 
-  const idx = STEPS.findIndex((s) => s.key === order.status);
-  const labelFor = (s: (typeof STEPS)[number]) =>
-    'label' in s ? s.label : order.fulfilment_mode === 'pickup' ? s.pickup : s.delivery;
-  const current = STEPS[idx];
+  const pickup = order.fulfilment_mode === 'pickup';
+  const labelFor = (key: (typeof STEP_KEYS)[number]) => {
+    if (key === 'new') return t.stepNew;
+    if (key === 'confirmed') return t.stepConfirmed;
+    if (key === 'ready') return pickup ? t.stepReadyPickup : t.stepReadyDelivery;
+    return pickup ? t.stepDonePickup : t.stepDoneDelivery;
+  };
+  const idx = STEP_KEYS.indexOf(order.status as (typeof STEP_KEYS)[number]);
 
   return (
     <>
-      <Header title="Order status" back="/" />
+      <Header title={t.orderStatus} back="/" />
       <section className="px-4 pt-5 pb-2">
         <StatusArt status={order.status} mode={order.fulfilment_mode} />
       </section>
 
       <section className="px-4 pb-6 text-center step-rise">
-        {order.short_code && <div className="text-ink-3 text-xs">Order {order.short_code}</div>}
-        <div className="serif text-2xl mt-1">{current ? labelFor(current) : order.status}</div>
+        {order.short_code && <div className="text-ink-3 text-xs">{t.orderNo} {order.short_code}</div>}
+        <div className="serif text-2xl mt-1">{idx >= 0 ? labelFor(STEP_KEYS[idx]) : order.status}</div>
         {order.status === 'confirmed' && order.prep_minutes && (
-          <p className="text-ink-2 text-sm mt-2">
-            Ready in about <strong>{order.prep_minutes} min</strong>
-          </p>
+          <p className="text-ink-2 text-sm mt-2">{t.readyInAbout(order.prep_minutes)}</p>
         )}
         {order.status === 'ready' && (
-          <p className="text-ink-2 text-sm mt-2">
-            {order.fulfilment_mode === 'pickup' ? 'Come and grab it!' : 'On the way to you now.'}
-          </p>
+          <p className="text-ink-2 text-sm mt-2">{pickup ? t.comeGrab : t.onTheWay}</p>
         )}
       </section>
 
       <ol className="px-4 space-y-2">
-        {STEPS.map((s, i) => {
+        {STEP_KEYS.map((key, i) => {
           const done = i < idx;
           const activeStep = i === idx;
           return (
             <li
-              key={s.key}
+              key={key}
               className={`flex items-center gap-3 rounded-xl border p-3 transition ${
                 i <= idx ? 'border-accent bg-accent-soft/20' : 'border-rule bg-white'
               } ${activeStep ? 'sweep' : ''}`}
@@ -113,7 +110,7 @@ export default function OrderStatusPage() {
               >
                 {done ? '✓' : i + 1}
               </span>
-              <span className="text-sm">{labelFor(s)}</span>
+              <span className="text-sm">{labelFor(key)}</span>
             </li>
           );
         })}
@@ -121,12 +118,12 @@ export default function OrderStatusPage() {
 
       <section className="px-4 py-6 mt-2 border-t border-rule">
         <div className="flex justify-between text-sm">
-          <span className="text-ink-2">Total paid</span>
+          <span className="text-ink-2">{t.totalPaid}</span>
           <span className="font-medium">{baht(order.total_satang)}</span>
         </div>
         <div className="flex justify-between text-sm mt-1">
-          <span className="text-ink-2">Fulfilment</span>
-          <span>{order.fulfilment_mode === 'pickup' ? 'Pickup' : 'Delivery'}</span>
+          <span className="text-ink-2">{t.fulfilment}</span>
+          <span>{pickup ? t.pickup : t.delivery}</span>
         </div>
       </section>
     </>

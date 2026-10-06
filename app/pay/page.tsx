@@ -7,6 +7,7 @@ import { useLiff } from '@/lib/liff';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
+import { useLang } from '@/lib/i18n';
 
 export default function PayPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function PayPage() {
   const setActiveOrderId = useCart((s) => s.setActiveOrderId);
   const hydrated = useCartHydrated();
   const { ready: liffReady, profile } = useLiff();
+  const { t } = useLang();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -42,7 +44,7 @@ export default function PayPage() {
           line_user_id: profile?.userId ?? null,
           display_name: profile?.displayName ?? null,
           lines: lines.map((l) => ({
-            item_id: l.item_id, name: l.name, base_price_satang: l.base_price_satang,
+            item_id: l.item_id, name: l.name_kitchen ?? l.name, base_price_satang: l.base_price_satang,
             qty: l.qty, options: l.option_labels, option_ids: l.option_ids,
             line_total_satang: l.line_total_satang, note: l.note ?? null,
           })),
@@ -63,17 +65,17 @@ export default function PayPage() {
   }
 
   if (!hydrated) {
-    return <><Header title="Pay with PromptPay" back="/checkout" /><div className="p-6 text-ink-3">Loading…</div></>;
+    return <><Header title={t.payTitle} back="/checkout" /><div className="p-6 text-ink-3">{t.loading}</div></>;
   }
 
   if (lines.length === 0 || !fulfilment) {
     return (
       <>
-        <Header title="Pay with PromptPay" back="/checkout" />
+        <Header title={t.payTitle} back="/checkout" />
         <div className="p-10 text-center text-ink-3">
-          <p>{lines.length === 0 ? 'Your cart is empty.' : 'Please choose pickup or delivery first.'}</p>
+          <p>{lines.length === 0 ? t.cartEmpty : t.howReceive}</p>
           <Link href={lines.length === 0 ? '/' : '/checkout'} className="btn-outline mt-4 inline-block">
-            {lines.length === 0 ? 'Browse menu' : 'Back to checkout'}
+            {lines.length === 0 ? t.browseMenu : t.checkoutTitle}
           </Link>
         </div>
       </>
@@ -82,9 +84,9 @@ export default function PayPage() {
 
   return (
     <>
-      <Header title="Pay with PromptPay" back="/checkout" />
+      <Header title={t.payTitle} back="/checkout" />
       <section className="p-4 text-center">
-        <p className="text-ink-2 text-sm">Scan this QR with any Thai banking app</p>
+        <p className="text-ink-2 text-sm">{t.scanQr}</p>
         <div className="mt-3 inline-block rounded-2xl bg-white border border-rule p-3">
           <img src="/qr.jpg" alt="PromptPay QR" className="w-56 h-56 object-contain" />
         </div>
@@ -93,8 +95,8 @@ export default function PayPage() {
       </section>
 
       <section className="p-4 border-t border-rule">
-        <h2 className="serif text-lg">Upload your payment slip</h2>
-        <p className="text-ink-3 text-xs mt-1">The shop will verify and confirm your order.</p>
+        <h2 className="serif text-lg">{t.uploadSlip}</h2>
+        <p className="text-ink-3 text-xs mt-1">{t.uploadSlipSub}</p>
         <input
           ref={fileRef}
           type="file"
@@ -104,37 +106,32 @@ export default function PayPage() {
         />
         {!preview ? (
           <button onClick={() => fileRef.current?.click()} className="btn-outline mt-3 w-full">
-            Choose slip image
+            {t.chooseSlip}
           </button>
         ) : (
           <div className="mt-3">
             <img src={preview} alt="slip preview" className="w-full rounded-xl border border-rule" />
-            <button onClick={() => pickFile(null)} className="text-ink-3 text-xs mt-2 underline">Choose a different image</button>
+            <button onClick={() => pickFile(null)} className="text-ink-3 text-xs mt-2 underline">{t.chooseOther}</button>
           </div>
         )}
       </section>
 
       <section className="px-4 pb-2">
         {liffReady && (profile ? (
-          <p className="text-ink-3 text-xs">
-            Signed in as {profile.displayName}. We&rsquo;ll message you on LINE as your order moves along.
-          </p>
+          <p className="text-ink-3 text-xs">{t.signedInAs(profile.displayName)}</p>
         ) : (
           <div className="rounded-xl border border-accent bg-accent-soft/20 p-3">
-            <div className="text-sm font-medium">We can&rsquo;t message you about this order</div>
-            <p className="text-ink-2 text-xs mt-1">
-              You&rsquo;re not connected to LINE, so there is nowhere to send updates. Open the shop from the
-              Mr. Big Belly menu in LINE if you&rsquo;d like them. Your order will still go through.
-            </p>
+            <div className="text-sm font-medium">{t.noLineTitle}</div>
+            <p className="text-ink-2 text-xs mt-1">{t.noLineBody}</p>
           </div>
         ))}
       </section>
 
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
-        {err && <div className="text-sm text-accent mb-2">Something went wrong: {err}</div>}
-        {!file && <p className="text-ink-3 text-xs mb-2">Upload your slip to finish the order.</p>}
+        {err && <div className="text-sm text-accent mb-2">{t.wentWrong}: {err}</div>}
+        {!file && <p className="text-ink-3 text-xs mb-2">{t.uploadToFinish}</p>}
         <button onClick={submit} disabled={!file || submitting} className="btn-primary w-full disabled:opacity-50">
-          {submitting ? 'Sending…' : 'Submit order'}
+          {submitting ? t.sending : t.submitOrder}
         </button>
       </div>
     </>

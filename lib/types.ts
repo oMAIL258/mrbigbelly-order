@@ -44,7 +44,10 @@ export type OptionRow = {
 export type CartLine = {
   key: string;
   item_id: string;
+  /** What this customer saw, in the language they were browsing in. */
   name: string;
+  /** What the kitchen ticket says, always the same wording whoever ordered. */
+  name_kitchen: string;
   base_price_satang: number;
   qty: number;
   option_ids: string[];

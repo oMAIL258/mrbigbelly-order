@@ -5,12 +5,14 @@ import { supabase } from '@/lib/supabase';
 import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
+import { useLang, pickName, otherName } from '@/lib/i18n';
 import type { MenuItem, OptionGroup, OptionRow } from '@/lib/types';
 
 export default function DishPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const add = useCart((s) => s.add);
+  const { lang, t } = useLang();
 
   const [item, setItem] = useState<MenuItem | null>(null);
   const [groups, setGroups] = useState<OptionGroup[]>([]);
@@ -69,7 +71,10 @@ export default function DishPage() {
     add({
       key,
       item_id: item.id,
-      name: item.name_en,
+      name: pickName(lang, item.name_en, item.name_th),
+      // The ticket must not change language with the customer, or a Thai
+      // kitchen gets an English docket because a tourist switched the toggle.
+      name_kitchen: item.name_th?.trim() || item.name_en,
       base_price_satang: item.price_satang,
       qty,
       option_ids: extras.map((e) => e.id),
@@ -80,15 +85,17 @@ export default function DishPage() {
     router.push('/');
   }
 
-  if (!item) return <><Header back="/" /><div className="p-6 text-ink-3">Loading…</div></>;
+  if (!item) return <><Header back="/" /><div className="p-6 text-ink-3">{t.loading}</div></>;
 
   return (
     <>
-      <Header title={item.name_en} back="/" />
+      <Header title={pickName(lang, item.name_en, item.name_th)} back="/" />
       {item.photo_url && <img src={item.photo_url} alt="" className="w-full h-56 object-cover" />}
       <div className="px-4 py-4">
-        <h1 className="serif text-2xl">{item.name_en}</h1>
-        {item.name_th && <div className="text-ink-3 text-sm">{item.name_th}</div>}
+        <h1 className="serif text-2xl">{pickName(lang, item.name_en, item.name_th)}</h1>
+        {otherName(lang, item.name_en, item.name_th) && (
+          <div className="text-ink-3 text-sm">{otherName(lang, item.name_en, item.name_th)}</div>
+        )}
         {item.description && <p className="text-ink-2 text-sm mt-2">{item.description}</p>}
         <div className="mt-2 text-ink font-medium">{baht(item.price_satang)}</div>
       </div>
@@ -102,9 +109,9 @@ export default function DishPage() {
             <div className="flex items-baseline justify-between mb-2">
               <h2 className="serif text-lg">{g.name}</h2>
               <span className={`text-xs ${ok ? 'text-ink-3' : 'text-accent'}`}>
-                {g.pick_kind === 'one' && 'Pick 1'}
-                {g.pick_kind === 'exact' && `Pick ${g.pick_count} (${n}/${g.pick_count})`}
-                {g.pick_kind === 'multi' && 'Optional'}
+                {g.pick_kind === 'one' && t.pickOne}
+                {g.pick_kind === 'exact' && t.pickN(g.pick_count ?? 1, n)}
+                {g.pick_kind === 'multi' && t.optional}
               </span>
             </div>
             <ul className="space-y-2">
@@ -132,13 +139,13 @@ export default function DishPage() {
       })}
 
       <section className="px-4 py-3 border-t border-rule">
-        <label className="text-sm text-ink-2">Note to the kitchen (optional)</label>
+        <label className="text-sm text-ink-2">{t.noteLabel}</label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
           className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
-          placeholder="e.g. less spicy"
+          placeholder={t.notePlaceholder}
         />
       </section>
 
@@ -153,7 +160,7 @@ export default function DishPage() {
           disabled={!valid}
           className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Add {baht(unitPrice * qty)}
+          {t.add} {baht(unitPrice * qty)}
         </button>
       </div>
     </>

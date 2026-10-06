@@ -6,6 +6,7 @@ import { baht } from '@/lib/money';
 import { useCart } from '@/lib/cart';
 import { Header } from '@/components/Header';
 import { OngoingOrder } from '@/components/OngoingOrder';
+import { useLang, pickName, otherName } from '@/lib/i18n';
 import type { Category, MenuItem, StoreSettings } from '@/lib/types';
 
 export default function MenuPage() {
@@ -14,6 +15,7 @@ export default function MenuPage() {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { lang, t } = useLang();
   const lastCategoryId = useCart((s) => s.lastCategoryId);
   const setLastCategoryId = useCart((s) => s.setLastCategoryId);
 
@@ -51,16 +53,16 @@ export default function MenuPage() {
       <Header />
       <section className="px-4 pt-4 pb-2">
         <h1 className="serif text-2xl leading-tight">Mr. Big Belly</h1>
-        <p className="text-ink-3 text-sm">Juice &amp; More · Bangkok</p>
+        <p className="text-ink-3 text-sm">{t.tagline}</p>
       </section>
 
       <OngoingOrder />
 
       {closed && (
         <div className="mx-4 mb-2 rounded-xl border border-accent bg-accent-soft/25 p-3">
-          <div className="serif text-base">We&rsquo;re closed right now</div>
+          <div className="serif text-base">{t.closedTitle}</div>
           <p className="text-ink-2 text-sm mt-1">
-            {settings?.closed_message?.trim() || 'Have a look at the menu — you can order again when we reopen.'}
+            {settings?.closed_message?.trim() || t.closedBody}
           </p>
         </div>
       )}
@@ -74,20 +76,22 @@ export default function MenuPage() {
               active === c.id ? 'bg-accent text-white' : 'bg-white border border-rule text-ink-2'
             }`}
           >
-            {c.name_en}
+            {pickName(lang, c.name_en, c.name_th)}
           </button>
         ))}
       </nav>
 
       <ul className="px-4 py-3 space-y-3 pb-24">
-        {loading && <li className="text-ink-3 text-sm text-center py-10">Loading menu…</li>}
-        {!loading && shown.length === 0 && <li className="text-ink-3 text-sm text-center py-10">No items yet.</li>}
+        {loading && <li className="text-ink-3 text-sm text-center py-10">{t.loadingMenu}</li>}
+        {!loading && shown.length === 0 && <li className="text-ink-3 text-sm text-center py-10">{t.noItems}</li>}
         {shown.map((it) => (
           <li key={it.id}>
             <Link href={`/dish/${it.id}`} className="card flex gap-3 p-3 hover:border-ink-3">
               <div className="flex-1 min-w-0">
-                <div className="serif text-base leading-snug">{it.name_en}</div>
-                {it.name_th && <div className="text-ink-3 text-xs">{it.name_th}</div>}
+                <div className="serif text-base leading-snug">{pickName(lang, it.name_en, it.name_th)}</div>
+                {otherName(lang, it.name_en, it.name_th) && (
+                  <div className="text-ink-3 text-xs">{otherName(lang, it.name_en, it.name_th)}</div>
+                )}
                 {it.description && <p className="text-ink-2 text-sm mt-1 line-clamp-2">{it.description}</p>}
                 <div className="mt-2 text-ink font-medium">{baht(it.price_satang)}</div>
               </div>

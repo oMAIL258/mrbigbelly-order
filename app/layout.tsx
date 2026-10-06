@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { LiffProvider } from '@/lib/liff';
+import { LangProvider } from '@/lib/i18n';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -12,7 +13,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="th">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -22,9 +23,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
-        <LiffProvider>
-          <div className="mx-auto max-w-md min-h-screen bg-bg">{children}</div>
-        </LiffProvider>
+        <LangProvider>
+          <LiffProvider>
+            <div className="mx-auto max-w-md min-h-screen bg-bg">{children}</div>
+          </LiffProvider>
+        </LangProvider>
       </body>
     </html>
   );

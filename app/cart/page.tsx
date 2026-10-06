@@ -3,16 +3,18 @@ import Link from 'next/link';
 import { useCart } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
+import { useLang } from '@/lib/i18n';
 
 export default function CartPage() {
   const { lines, setQty, remove, subtotal } = useCart();
+  const { t } = useLang();
   return (
     <>
-      <Header title="Your cart" back="/" />
+      <Header title={t.yourCart} back="/" />
       {lines.length === 0 ? (
         <div className="p-10 text-center text-ink-3">
-          <p>Your cart is empty.</p>
-          <Link href="/" className="btn-outline mt-4 inline-block">Browse menu</Link>
+          <p>{t.cartEmpty}</p>
+          <Link href="/" className="btn-outline mt-4 inline-block">{t.browseMenu}</Link>
         </div>
       ) : (
         <>
@@ -31,7 +33,7 @@ export default function CartPage() {
                   </div>
                   <div className="text-right whitespace-nowrap">
                     <div className="font-medium">{baht(l.line_total_satang)}</div>
-                    <button onClick={() => remove(l.key)} className="text-ink-3 text-xs mt-2 underline">Remove</button>
+                    <button onClick={() => remove(l.key)} className="text-ink-3 text-xs mt-2 underline">{t.remove}</button>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center rounded-full border border-rule bg-white w-fit">
@@ -44,10 +46,10 @@ export default function CartPage() {
           </ul>
           <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
             <div className="flex justify-between mb-3 text-sm">
-              <span className="text-ink-2">Subtotal</span>
+              <span className="text-ink-2">{t.subtotal}</span>
               <span className="font-medium">{baht(subtotal())}</span>
             </div>
-            <Link href="/checkout" className="btn-primary w-full">Checkout</Link>
+            <Link href="/checkout" className="btn-primary w-full">{t.checkout}</Link>
           </div>
         </>
       )}
