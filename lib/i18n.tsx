@@ -76,6 +76,11 @@ const TH = {
   loadingOrder: 'กำลังโหลดคำสั่งซื้อ…',
   declined: 'คำสั่งซื้อถูกปฏิเสธ',
   declinedNote: 'หากคุณชำระเงินมาแล้ว ทางร้านจะคืนเงินให้ผ่าน LINE',
+  rrPayment: 'ตรวจสอบการชำระเงินไม่ได้',
+  rrStock: 'ของหมด',
+  rrHours: 'นอกเวลาทำการ',
+  rrArea: 'ไม่ได้ส่งในพื้นที่นี้',
+  rrOther: 'เหตุผลอื่น',
   orderNo: 'คำสั่งซื้อ',
   stepNew: 'รอร้านยืนยัน',
   stepNewNote: 'กำลังตรวจสอบสลิปของคุณ',
@@ -160,6 +165,11 @@ const EN: typeof TH = {
   loadingOrder: 'Loading your order…',
   declined: 'Order declined',
   declinedNote: 'If you were charged, the shop will arrange a refund via LINE.',
+  rrPayment: 'Payment could not be verified',
+  rrStock: 'Out of stock',
+  rrHours: 'Outside operating hours',
+  rrArea: 'Delivery area not covered',
+  rrOther: 'Another reason',
   orderNo: 'Order',
   stepNew: 'Waiting for the shop',
   stepNewNote: 'We’re checking your payment slip.',
@@ -219,4 +229,15 @@ export function otherName(lang: Lang, en: string, th: string | null | undefined)
   const second = lang === 'th' ? en : th?.trim();
   const first = pickName(lang, en, th);
   return second && second !== first ? second : null;
+}
+
+/** The shop stores a code for why it declined an order, so the reason can be
+ *  read in either language. Orders declined before that change hold the wording
+ *  itself, which is shown as it was written. */
+export function rejectReason(t: typeof TH, stored: string | null): string | null {
+  if (!stored) return null;
+  const known: Record<string, string> = {
+    payment: t.rrPayment, stock: t.rrStock, hours: t.rrHours, area: t.rrArea, other: t.rrOther,
+  };
+  return known[stored] ?? stored;
 }

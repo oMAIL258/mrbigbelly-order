@@ -6,7 +6,7 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { StatusArt } from '@/components/StatusArt';
 import { useCart } from '@/lib/cart';
-import { useLang } from '@/lib/i18n';
+import { useLang, rejectReason } from '@/lib/i18n';
 
 type Order = {
   id: string;
@@ -58,7 +58,9 @@ export default function OrderStatusPage() {
         <Header title={t.orderStatus} back="/" />
         <div className="p-6 text-center step-rise">
           <div className="serif text-xl text-accent">{t.declined}</div>
-          {order.reject_reason && <p className="text-ink-2 mt-2 text-sm">{order.reject_reason}</p>}
+          {rejectReason(t, order.reject_reason) && (
+            <p className="text-ink-2 mt-2 text-sm">{rejectReason(t, order.reject_reason)}</p>
+          )}
           <p className="text-ink-3 text-xs mt-4">{t.declinedNote}</p>
         </div>
       </>
