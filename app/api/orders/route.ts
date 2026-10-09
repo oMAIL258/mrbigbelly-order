@@ -94,8 +94,21 @@ export async function POST(req: NextRequest) {
   const items = body.lines.map((l) => `• ${l.qty}× ${l.name}`).join('\n');
   const pickup = body.fulfilment.mode === 'pickup';
   const total = `฿${(body.total_satang / 100).toLocaleString('en-US')}`;
+
+  // The shop wants to know who it is before opening the board. A delivery
+  // order carries the name they typed for the rider, which is the one that
+  // matters at the door; their LINE name rides along when it is a different
+  // one. A pickup order outside LINE has no name to give, so the line is left
+  // out rather than printed empty.
+  const lineName = body.display_name?.trim() || null;
+  const contactName = body.fulfilment.mode === 'delivery' ? body.fulfilment.name?.trim() || null : null;
+  const customerName = contactName && lineName && contactName !== lineName
+    ? `${contactName} (LINE: ${lineName})`
+    : contactName ?? lineName;
+
   await alertStaff(
     `🔔 ออเดอร์ใหม่ / NEW ORDER ${order?.short_code ?? ''}\n`
+    + (customerName ? `👤 ${customerName}\n` : '')
     + `${pickup ? 'รับที่ร้าน / Pickup' : 'จัดส่ง / Delivery'} · ${total}\n\n`
     + `${items}\n\n`
     + 'เปิดหน้าออเดอร์เพื่อรับออเดอร์\nOpen the order board to accept it.',
