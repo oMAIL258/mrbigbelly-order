@@ -8,12 +8,14 @@ export type PointEvent = {
 };
 export type MyOrder = {
   id: string; short_code: string | null; status: string;
+  subtotal_satang: number | null; discount_satang: number | null;
   total_satang: number; fulfilment_mode: 'pickup' | 'delivery'; created_at: string;
   order_items: { name_snapshot: string; qty: number }[];
 };
 export type MyClaim = {
   id: string; code: string | null; status: 'pending' | 'approved' | 'rejected' | 'used';
-  points_cost: number; reward_title_th: string; reward_title_en: string;
+  points_cost: number; discount_satang: number | null;
+  reward_title_th: string; reward_title_en: string;
   reject_reason: string | null; created_at: string;
 };
 export type Me = {
@@ -23,7 +25,16 @@ export type Me = {
   claims: MyClaim[];
   satangPerPoint: number;
   pointsEnabled: boolean;
+  /** How many months a point lasts. 0 means they never run out. */
+  validMonths: number;
+  /** The next points to run out, and when. */
+  expiring: { points: number; on: string } | null;
 };
+
+/** The approved discounts this customer can spend on an order. */
+export function usableVouchers(me: Me | null): MyClaim[] {
+  return (me?.claims ?? []).filter((c) => c.status === 'approved' && c.discount_satang);
+}
 
 type State = { loading: boolean; me: Me | null; needsLine: boolean };
 

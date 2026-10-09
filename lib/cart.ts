@@ -25,12 +25,15 @@ type CartState = {
   fulfilment: Fulfilment | null;
   lastCategoryId: string | null;
   activeOrderId: string | null;
+  /** An approved discount the customer has chosen to spend on this order. */
+  voucherId: string | null;
   add: (line: CartLine) => void;
   remove: (key: string) => void;
   setQty: (key: string, qty: number) => void;
   setFulfilment: (f: Fulfilment) => void;
   setLastCategoryId: (id: string) => void;
   setActiveOrderId: (id: string | null) => void;
+  setVoucherId: (id: string | null) => void;
   clear: () => void;
   subtotal: () => number;
 };
@@ -42,6 +45,7 @@ export const useCart = create<CartState>()(
       fulfilment: null,
       lastCategoryId: null,
       activeOrderId: null,
+      voucherId: null,
       add: (line) => set((s) => {
         const existing = s.lines.find((l) => l.key === line.key);
         if (!existing) return { lines: [...s.lines, line] };
@@ -61,7 +65,10 @@ export const useCart = create<CartState>()(
       setLastCategoryId: (lastCategoryId) => set({ lastCategoryId }),
       // Survives closing LINE, so the menu can offer a way back to a live order.
       setActiveOrderId: (activeOrderId) => set({ activeOrderId }),
-      clear: () => set({ lines: [], fulfilment: null }),
+      // Never chosen for the customer, and dropped with the rest of the order
+      // once it has been placed.
+      setVoucherId: (voucherId) => set({ voucherId }),
+      clear: () => set({ lines: [], fulfilment: null, voucherId: null }),
       subtotal: () => get().lines.reduce((n, l) => n + l.line_total_satang, 0),
     }),
     {
@@ -72,6 +79,7 @@ export const useCart = create<CartState>()(
         fulfilment: s.fulfilment,
         lastCategoryId: s.lastCategoryId,
         activeOrderId: s.activeOrderId,
+        voucherId: s.voucherId,
       }),
     },
   ),

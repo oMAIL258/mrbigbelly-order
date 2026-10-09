@@ -18,10 +18,21 @@ export async function POST(req: NextRequest) {
 
   const sb = supabaseServer();
 
-  const { data: customer } = await sb
+  const { data: found } = await sb
     .from('customers')
     .upsert({ line_user_id: who.userId, display_name: who.displayName }, { onConflict: 'line_user_id' })
+    .select('id')
+    .single();
+  if (!found) return NextResponse.json({ error: 'no profile' }, { status: 500 });
+
+  // Points that ran out are gone before the balance is read, so nothing can be
+  // claimed with them in the window before anybody happens to look.
+  await sb.rpc('expire_points', { p_customer: found.id });
+
+  const { data: customer } = await sb
+    .from('customers')
     .select('id, display_name, points_balance')
+    .eq('id', found.id)
     .single();
   if (!customer) return NextResponse.json({ error: 'no profile' }, { status: 500 });
 
@@ -61,6 +72,7 @@ export async function POST(req: NextRequest) {
     reward_title_th: reward.title_th,
     reward_title_en: reward.title_en,
     points_cost: reward.points_cost,
+    discount_satang: reward.discount_satang ?? null,
     status: 'pending',
   }).select('id').single();
   if (error || !claim) return NextResponse.json({ error: error?.message ?? 'failed' }, { status: 500 });
@@ -83,7 +95,8 @@ export async function POST(req: NextRequest) {
   await alertStaff(
     `🎁 ขอใช้สิทธิ์ / REWARD REQUEST\n`
     + `${customer.display_name ?? who.displayName ?? 'ลูกค้า'}\n`
-    + `${reward.title_th} (${reward.points_cost} แต้ม)\n\n`
+    + `${reward.title_th} (${reward.points_cost} แต้ม`
+    + `${reward.discount_satang ? ` · ลด ฿${(reward.discount_satang / 100).toLocaleString('en-US')}` : ''})\n\n`
     + `${reward.title_en}\n`
     + 'เปิดหน้าคำขอเพื่ออนุมัติ\nOpen Requests in the admin to approve it.',
     ((staff ?? []) as { line_user_id: string }[]).map((r) => r.line_user_id),

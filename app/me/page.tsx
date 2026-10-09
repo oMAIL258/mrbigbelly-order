@@ -38,6 +38,7 @@ export default function MePage() {
     : k === 'welcome' ? t.keWelcome
     : k === 'redeem' ? t.keRedeem
     : k === 'refund' ? t.keRefund
+    : k === 'expire' ? t.keExpire
     : t.keManual;
 
   const claimLabel = (s: MyClaim['status']) =>
@@ -69,6 +70,13 @@ export default function MePage() {
           <div className="text-white/70 text-xs mt-2">
             {me.pointsEnabled ? t.earnRate(Math.round(me.satangPerPoint / 100)) : t.pointsOff}
           </div>
+          {me.profile.points > 0 && (
+            <div className="text-white/70 text-xs mt-1">
+              {me.expiring
+                ? t.expiryLine(me.expiring.points, day(me.expiring.on, lang))
+                : t.neverExpires}
+            </div>
+          )}
         </div>
 
         <Link href="/rewards" className="btn-primary w-full mt-3">🎁 {t.browseRewards}</Link>
@@ -103,11 +111,18 @@ export default function MePage() {
                   <div className="text-ink-3 text-xs mt-1">
                     −{c.points_cost} {t.pointsWord} · {day(c.created_at, lang)}
                   </div>
-                  {c.status === 'approved' && c.code && (
-                    <div className="mt-2 rounded-xl bg-accent-soft/25 p-3 text-center">
-                      <div className="serif text-2xl tracking-[0.2em]">{c.code}</div>
-                      <div className="text-ink-2 text-xs mt-1">{t.showCode}</div>
-                    </div>
+                  {c.status === 'approved' && (
+                    c.discount_satang ? (
+                      <div className="mt-2 rounded-xl bg-veg/10 p-3 text-center">
+                        <div className="serif text-2xl text-veg">−{baht(c.discount_satang)}</div>
+                        <div className="text-ink-2 text-xs mt-1">{t.discountWaiting}</div>
+                      </div>
+                    ) : c.code ? (
+                      <div className="mt-2 rounded-xl bg-accent-soft/25 p-3 text-center">
+                        <div className="serif text-2xl tracking-[0.2em]">{c.code}</div>
+                        <div className="text-ink-2 text-xs mt-1">{t.showCode}</div>
+                      </div>
+                    ) : null
                   )}
                   {c.status === 'rejected' && c.reject_reason && (
                     <div className="text-ink-3 text-xs mt-1 italic">{c.reject_reason}</div>
@@ -154,14 +169,42 @@ export default function MePage() {
                       <span className="text-ink-2">{o.fulfilment_mode === 'pickup' ? t.pickup : t.delivery}</span>
                       <span className="font-medium">{baht(o.total_satang)}</span>
                     </div>
+                    {o.discount_satang ? (
+                      <div className="text-veg text-xs mt-0.5">{t.discountApplied} −{baht(o.discount_satang)}</div>
+                    ) : null}
                   </Link>
                 </li>
               ))}
             </ul>
           )
         )}
+        <Rules me={me} />
       </section>
     </>
+  );
+}
+
+/**
+ * Every rule that decides what a customer gets, in their own language and in
+ * one place. The shop would rather answer this once here than in a message
+ * when somebody's points have gone.
+ */
+function Rules({ me }: { me: NonNullable<ReturnType<typeof useMe>['me']> }) {
+  const { t } = useLang();
+  const lines = [
+    t.ruleEarn(Math.round(me.satangPerPoint / 100)),
+    t.ruleWhen,
+    me.validMonths > 0 ? t.ruleExpiry(me.validMonths) : t.ruleNoExpiry,
+    t.ruleApproval,
+    t.ruleOneOrder,
+  ];
+  return (
+    <section className="card mt-4 p-4">
+      <h2 className="serif text-base">{t.howItWorks}</h2>
+      <ul className="mt-2 space-y-1.5 text-ink-2 text-xs leading-relaxed">
+        {lines.map((line, i) => <li key={i} className="flex gap-2"><span className="text-ink-3">·</span>{line}</li>)}
+      </ul>
+    </section>
   );
 }
 

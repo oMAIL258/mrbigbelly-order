@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Fulfilment } from '@/lib/types';
 import { alertStaff } from '@/lib/line-server';
+import { lineUserFromToken } from '@/lib/line-verify';
 
 type OptionLabel = { group: string; label: string; price_delta_satang: number };
 type LinePayload = {
@@ -18,9 +19,14 @@ type Body = {
   line_user_id: string | null;
   display_name: string | null;
   lines: LinePayload[];
+  /** Kept for older pages; the server prices the order from its own lines. */
   total_satang: number;
   fulfilment: Fulfilment;
   slip_path: string;
+  /** The LIFF access token, when the order was placed inside LINE. */
+  token?: string | null;
+  /** An approved reward the customer is spending on this order. */
+  redemption_id?: string | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -37,25 +43,87 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Who the order belongs to. Inside LINE this comes from LINE rather than
+  // from the page, because the points it earns are worth money and a browser
+  // could name anybody.
+  const verified = await lineUserFromToken(body.token);
+  const lineId = verified?.userId ?? body.line_user_id;
+  const displayName = verified?.displayName ?? body.display_name;
+
   let customer_id: string | null = null;
-  if (body.line_user_id) {
+  if (lineId) {
     const upserted = await sb
       .from('customers')
-      .upsert({ line_user_id: body.line_user_id, display_name: body.display_name }, { onConflict: 'line_user_id' })
+      .upsert({ line_user_id: lineId, display_name: displayName }, { onConflict: 'line_user_id' })
       .select('id')
       .single();
     customer_id = upserted.data?.id ?? null;
   }
 
+  // The order is priced from its own lines, so what the customer is asked to
+  // transfer and what is written down cannot drift apart.
+  const subtotal = Math.round(body.lines.reduce((n, l) => n + (l.line_total_satang ?? 0), 0));
+
+  let discount = 0;
+  let redemption_id: string | null = null;
+  if (body.redemption_id) {
+    // Spending a voucher is spending money, so this needs LINE's word on who
+    // is asking, not the page's.
+    if (!verified || !customer_id) {
+      return NextResponse.json({ error: 'unverified' }, { status: 401 });
+    }
+    const { data: voucher } = await sb
+      .from('redemptions')
+      .select('id, status, discount_satang, customer_id')
+      .eq('id', body.redemption_id)
+      .maybeSingle();
+    if (!voucher || voucher.customer_id !== customer_id || !voucher.discount_satang) {
+      return NextResponse.json({ error: 'no such discount' }, { status: 404 });
+    }
+    if (voucher.status !== 'approved') {
+      return NextResponse.json({ error: 'discount used' }, { status: 409 });
+    }
+    // A voucher worth more than the order would be thrown away on it, and the
+    // shop still needs a transfer to check against, so the order has to come
+    // to more than the discount.
+    if (subtotal <= voucher.discount_satang) {
+      return NextResponse.json(
+        { error: 'order too small', minimum: voucher.discount_satang },
+        { status: 409 },
+      );
+    }
+    discount = voucher.discount_satang;
+    redemption_id = voucher.id;
+  }
+
   const insOrder = await sb.from('orders').insert({
     customer_id,
     status: 'new',
-    total_satang: body.total_satang,
+    subtotal_satang: subtotal,
+    discount_satang: discount,
+    total_satang: subtotal - discount,
+    redemption_id,
     fulfilment_mode: body.fulfilment.mode,
     area_slug: body.fulfilment.mode === 'delivery' ? body.fulfilment.area_slug : null,
   }).select('id').single();
-  if (insOrder.error) return NextResponse.json({ error: insOrder.error.message }, { status: 500 });
+  if (insOrder.error) {
+    // A unique index means one voucher reaches one order, whatever two taps on
+    // a slow connection try at once. The customer is told to try again without
+    // it rather than being charged the discounted amount for nothing.
+    const clash = redemption_id && /orders_redemption_once/.test(insOrder.error.message);
+    return NextResponse.json(
+      { error: clash ? 'discount used' : insOrder.error.message },
+      { status: clash ? 409 : 500 },
+    );
+  }
   const order_id = insOrder.data.id as string;
+
+  if (redemption_id) {
+    await sb.from('redemptions')
+      .update({ status: 'used', used_at: new Date().toISOString() })
+      .eq('id', redemption_id)
+      .eq('status', 'approved');
+  }
 
   if (body.fulfilment.mode === 'delivery') {
     await sb.from('delivery_details').insert({
@@ -93,14 +161,17 @@ export async function POST(req: NextRequest) {
   const { data: staff } = await sb.from('staff_alerts').select('line_user_id');
   const items = body.lines.map((l) => `• ${l.qty}× ${l.name}`).join('\n');
   const pickup = body.fulfilment.mode === 'pickup';
-  const total = `฿${(body.total_satang / 100).toLocaleString('en-US')}`;
+  const paid = subtotal - discount;
+  const total = discount > 0
+    ? `฿${(paid / 100).toLocaleString('en-US')} (ลด ฿${(discount / 100).toLocaleString('en-US')})`
+    : `฿${(paid / 100).toLocaleString('en-US')}`;
 
   // The shop wants to know who it is before opening the board. A delivery
   // order carries the name they typed for the rider, which is the one that
   // matters at the door; their LINE name rides along when it is a different
   // one. A pickup order outside LINE has no name to give, so the line is left
   // out rather than printed empty.
-  const lineName = body.display_name?.trim() || null;
+  const lineName = displayName?.trim() || null;
   const contactName = body.fulfilment.mode === 'delivery' ? body.fulfilment.name?.trim() || null : null;
   const customerName = contactName && lineName && contactName !== lineName
     ? `${contactName} (LINE: ${lineName})`

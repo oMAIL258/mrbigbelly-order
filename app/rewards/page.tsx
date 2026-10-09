@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { CountUp } from '@/components/CountUp';
 import { useLang } from '@/lib/i18n';
 import { useMe } from '@/lib/me';
+import { baht } from '@/lib/money';
 
 type Reward = {
   id: string;
@@ -13,6 +14,7 @@ type Reward = {
   detail_th: string | null; detail_en: string | null;
   photo_url: string | null;
   points_cost: number;
+  discount_satang: number | null;
   stock: number | null;
   starts_at: string | null;
   ends_at: string | null;
@@ -115,6 +117,9 @@ export default function RewardsPage() {
                 </span>
                 <span className="block p-3">
                   <span className="block text-sm leading-snug line-clamp-2">{name(r)}</span>
+                  {r.discount_satang ? (
+                    <span className="block mt-1 serif text-xl text-veg leading-none">−{baht(r.discount_satang)}</span>
+                  ) : null}
                   <span className="block mt-2 text-accent font-medium text-sm">
                     ⭐ {r.points_cost.toLocaleString('en-US')} {t.pointsWord}
                   </span>
@@ -128,6 +133,24 @@ export default function RewardsPage() {
           );
         })}
       </ul>
+
+      {!loading && me && (
+        <section className="card mx-4 mb-10 p-4">
+          <h2 className="serif text-base">{t.howItWorks}</h2>
+          <ul className="mt-2 space-y-1.5 text-ink-2 text-xs leading-relaxed">
+            {[
+              t.ruleEarn(Math.round(me.satangPerPoint / 100)),
+              t.ruleWhen,
+              me.validMonths > 0 ? t.ruleExpiry(me.validMonths) : t.ruleNoExpiry,
+              t.ruleApproval,
+              t.ruleOneOrder,
+              t.ruleWhereSeen,
+            ].map((line, i) => (
+              <li key={i} className="flex gap-2"><span className="text-ink-3">·</span>{line}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40" onClick={close}>
@@ -151,8 +174,12 @@ export default function RewardsPage() {
                 <h2 className="serif text-xl mt-3">{name(open)}</h2>
                 {detail(open) && <p className="text-ink-2 text-sm mt-1 whitespace-pre-wrap">{detail(open)}</p>}
 
-                <div className="flex items-center justify-between mt-4 text-sm">
-                  <span className="text-ink-2">{t.confirmRedeemNote(open.points_cost)}</span>
+                <div className="mt-4 space-y-1.5 text-sm">
+                  <p className="text-ink-2">{t.confirmRedeemNote(open.points_cost)}</p>
+                  <p className="text-ink-3 text-xs">{t.ruleApproval}</p>
+                  {open.discount_satang ? (
+                    <p className="text-ink-3 text-xs">{t.ruleOneOrder}</p>
+                  ) : null}
                 </div>
 
                 {err && <div className="text-accent text-sm mt-3">{err}</div>}
