@@ -5,14 +5,32 @@ import { useLang } from '@/lib/i18n';
 import { useMe } from '@/lib/me';
 
 /**
- * The customer's points, on the menu where they are already looking. Shown only
- * once the profile is known, so the menu never flashes an empty card at someone
- * browsing from an ordinary browser.
+ * Points on the menu, where the customer is already looking.
+ *
+ * Only someone signed in through LINE has points, because that is what a
+ * balance belongs to. An ordinary browser still gets the card, saying so and
+ * opening the rewards, rather than a menu with no sign the shop has points at
+ * all — which reads as missing rather than as "not here yet".
  */
 export function MemberStrip() {
-  const { me, loading } = useMe();
+  const { me, loading, needsLine } = useMe();
   const { t } = useLang();
-  if (loading || !me) return null;
+  if (loading) return null;
+
+  if (needsLine || !me) {
+    return (
+      <section className="px-4 pt-3 step-rise">
+        <Link href="/rewards" className="points-card flex items-center gap-3 rounded-2xl p-4 text-white">
+          <span className="h-10 w-10 shrink-0 rounded-full bg-white/20 flex items-center justify-center shine">⭐</span>
+          <span className="min-w-0 flex-1">
+            <span className="block serif text-base leading-tight">{t.rewardsTitle}</span>
+            <span className="block text-white/75 text-xs mt-0.5">{t.openInLine}</span>
+          </span>
+          <span className="shrink-0 text-white/70 text-lg">›</span>
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <section className="px-4 pt-3 step-rise">
