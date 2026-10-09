@@ -50,3 +50,28 @@ h1, h2, h3, .serif { font-family: 'Fraunces', Georgia, serif; }
 @media (prefers-reduced-motion: reduce) {
   .step-active, .step-rise, .sweep::after { animation: none; }
 }
+
+/* Points and rewards */
+@keyframes mbb-burst {
+  0% { transform: scale(.4); opacity: 0 }
+  40% { opacity: 1 }
+  100% { transform: scale(1.9); opacity: 0 }
+}
+@keyframes mbb-shine { 0%, 100% { opacity: .35 } 50% { opacity: .9 } }
+@keyframes mbb-float { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+@keyframes mbb-sheet { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
+.burst { animation: mbb-burst .75s ease-out both; }
+.shine { animation: mbb-shine 2.4s ease-in-out infinite; }
+.float { animation: mbb-float 2.8s ease-in-out infinite; }
+.sheet { animation: mbb-sheet .28s ease-out both; }
+.stagger > * { animation: mbb-rise .35s ease-out both; }
+.stagger > *:nth-child(2) { animation-delay: .05s }
+.stagger > *:nth-child(3) { animation-delay: .1s }
+.stagger > *:nth-child(4) { animation-delay: .15s }
+.stagger > *:nth-child(n+5) { animation-delay: .2s }
+.points-card {
+  background: linear-gradient(135deg, #145DA0 0%, #2E7D5B 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .burst, .shine, .float, .sheet, .stagger > * { animation: none; opacity: 1; transform: none }
+}

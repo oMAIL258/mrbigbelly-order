@@ -6,6 +6,7 @@ import { baht } from '@/lib/money';
 import { useCart } from '@/lib/cart';
 import { Header } from '@/components/Header';
 import { OngoingOrder } from '@/components/OngoingOrder';
+import { MemberStrip } from '@/components/MemberStrip';
 import { useLang, pickName } from '@/lib/i18n';
 import { dishTitle, dishSubtitle } from '@/lib/names';
 import type { Category, MenuItem, StoreSettings } from '@/lib/types';
@@ -58,6 +59,7 @@ export default function MenuPage() {
       </section>
 
       <OngoingOrder />
+      <MemberStrip />
 
       {closed && (
         <div className="mx-4 mb-2 rounded-xl border border-accent bg-accent-soft/25 p-3">
