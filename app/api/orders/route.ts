@@ -83,18 +83,16 @@ export async function POST(req: NextRequest) {
     if (voucher.status !== 'approved') {
       return NextResponse.json({ error: 'discount used' }, { status: 409 });
     }
-    // A voucher worth more than the order would be thrown away on it, and the
-    // shop still needs a transfer to check against, so the order has to come
-    // to more than the discount.
-    if (subtotal <= voucher.discount_satang) {
-      return NextResponse.json(
-        { error: 'order too small', minimum: voucher.discount_satang },
-        { status: 409 },
-      );
-    }
-    discount = voucher.discount_satang;
+    // A voucher worth more than the order covers the whole bill, and whatever
+    // is left over is not kept. The customer is asked to confirm that on the
+    // payment screen before it gets here; what is written down is the part
+    // that was actually used, so the three columns always add up.
+    discount = Math.min(voucher.discount_satang, subtotal);
     redemption_id = voucher.id;
   }
+
+  // Nothing to transfer, so there is no slip to wait for.
+  const nothingToPay = subtotal - discount === 0;
 
   const insOrder = await sb.from('orders').insert({
     customer_id,
@@ -155,16 +153,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await sb.from('payment_slips').insert({ order_id, storage_path: body.slip_path });
+  if (body.slip_path) {
+    await sb.from('payment_slips').insert({ order_id, storage_path: body.slip_path });
+  }
 
   const { data: order } = await sb.from('orders').select('short_code').eq('id', order_id).maybeSingle();
   const { data: staff } = await sb.from('staff_alerts').select('line_user_id');
   const items = body.lines.map((l) => `• ${l.qty}× ${l.name}`).join('\n');
   const pickup = body.fulfilment.mode === 'pickup';
   const paid = subtotal - discount;
-  const total = discount > 0
-    ? `฿${(paid / 100).toLocaleString('en-US')} (ลด ฿${(discount / 100).toLocaleString('en-US')})`
-    : `฿${(paid / 100).toLocaleString('en-US')}`;
+  const total = nothingToPay
+    ? `฿0 · จ่ายด้วยแต้มทั้งหมด ไม่มีสลิป / paid with points, no slip`
+    : discount > 0
+      ? `฿${(paid / 100).toLocaleString('en-US')} (ลด ฿${(discount / 100).toLocaleString('en-US')})`
+      : `฿${(paid / 100).toLocaleString('en-US')}`;
 
   // The shop wants to know who it is before opening the board. A delivery
   // order carries the name they typed for the rider, which is the one that

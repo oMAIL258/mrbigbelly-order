@@ -125,7 +125,15 @@ const TH = {
   discountWaiting: 'เก็บไว้ใช้ตอนสั่งครั้งถัดไป',
   amountToTransfer: 'ยอดที่ต้องโอน',
   discountUsedAlready: 'ส่วนลดนี้ถูกใช้ไปแล้ว กดส่งออเดอร์อีกครั้งโดยไม่ใช้ส่วนลด ถ้าโอนเงินไปแล้วแจ้งร้านทาง LINE ได้เลย',
-  orderTooSmall: (b: number) => `ยอดสั่งต้องมากกว่า ฿${b.toLocaleString('en-US')} จึงจะใช้ส่วนลดนี้ได้`,
+  coversWholeBill: 'ส่วนลดนี้มากกว่ายอดสั่ง',
+  leftoverLost: (b: number) =>
+    `ส่วนลดที่เหลือ ฿${b.toLocaleString('en-US')} จะไม่ถูกเก็บไว้ใช้ครั้งหน้า ใช้ได้ครั้งเดียวทั้งใบ`,
+  nothingToTransfer: 'ไม่ต้องโอนเงิน',
+  nothingToTransferNote: 'ออเดอร์นี้จ่ายด้วยส่วนลดทั้งหมด ไม่ต้องแนบสลิป',
+  noPointsOnFree: 'ออเดอร์นี้ไม่ได้รับแต้มจากยอดซื้อ เพราะไม่มีเงินที่จ่ายจริง',
+  useAnyway: 'ใช้เลย',
+  confirmDiscount: 'ยืนยันการใช้ส่วนลด',
+  aboutToUseFull: (title: string) => `กำลังใช้ “${title}” กับออเดอร์นี้ ไม่ต้องโอนเงิน`,
 
   // The rules, said plainly so nobody has to ask
   howItWorks: 'แต้มสะสมทำงานอย่างไร',
@@ -278,7 +286,15 @@ const EN: typeof TH = {
   discountWaiting: 'Waiting for your next order',
   amountToTransfer: 'Transfer this amount',
   discountUsedAlready: 'That discount has already been used. Send the order again without it, and if you have already transferred, just tell the shop on LINE.',
-  orderTooSmall: (b) => `Your order needs to come to more than ฿${b.toLocaleString('en-US')} to use this discount.`,
+  coversWholeBill: 'This discount is bigger than your order',
+  leftoverLost: (b) =>
+    `The remaining ฿${b.toLocaleString('en-US')} will not be saved for next time — a voucher is used all at once.`,
+  nothingToTransfer: 'Nothing to transfer',
+  nothingToTransferNote: 'Your discount covers this order in full, so there is no slip to send.',
+  noPointsOnFree: 'This order earns no points from the amount paid, since nothing was transferred for it.',
+  useAnyway: 'Use it anyway',
+  confirmDiscount: 'Use this discount?',
+  aboutToUseFull: (title) => `You are spending “${title}” on this order. Nothing to transfer.`,
 
   // The rules, said plainly so nobody has to ask
   howItWorks: 'How points work',

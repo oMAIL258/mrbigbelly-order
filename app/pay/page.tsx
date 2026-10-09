@@ -9,7 +9,7 @@ import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
 import { kitchenName } from '@/lib/names';
-import { useMe, usableVouchers } from '@/lib/me';
+import { useMe, usableVouchers, type MyClaim } from '@/lib/me';
 
 export default function PayPage() {
   const router = useRouter();
@@ -26,6 +26,10 @@ export default function PayPage() {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<MyClaim | null>(null);
+  // Which voucher the customer has agreed to spend on a bill smaller than it.
+  // Held by id, because editing the cart afterwards changes what is at stake.
+  const [agreedToLose, setAgreedToLose] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function pickFile(f: File | null) {
@@ -37,21 +41,44 @@ export default function PayPage() {
   // A voucher saved from an earlier visit may have been spent since, so the
   // one in hand only counts while the server still lists it.
   const voucher = vouchers.find((v) => v.id === voucherId) ?? null;
-  const discount = voucher?.discount_satang ?? 0;
-  // A discount worth the whole order would leave nothing to transfer and no
-  // slip for the shop to check, so it is offered only where it fits.
-  const tooSmall = discount > 0 && subtotal() <= discount;
-  const due = tooSmall ? subtotal() : subtotal() - discount;
+  // Only the part that covers the bill comes off it. A voucher worth more than
+  // the order is spent all the same, which is why it is confirmed first.
+  const discount = Math.min(voucher?.discount_satang ?? 0, subtotal());
+  const due = subtotal() - discount;
+  const nothingToPay = Boolean(voucher) && due === 0;
+
+  // Picking one that covers the whole bill throws the rest of it away, so it
+  // is asked about rather than just applied.
+  function pick(v: MyClaim) {
+    if (v.id === voucherId) { setVoucherId(null); setAgreedToLose(null); return; }
+    if ((v.discount_satang ?? 0) >= subtotal()) { setConfirming(v); return; }
+    setVoucherId(v.id);
+  }
+
+  // Asking once is not enough on its own: a voucher picked against a larger
+  // bill ends up covering it in full if the cart is cut down afterwards, and a
+  // voucher chosen on an earlier visit is still here. So the question is put
+  // again at the last moment, and only a yes against the amount now on screen
+  // lets the order through.
+  const needsAgreement = Boolean(voucher)
+    && (voucher!.discount_satang ?? 0) >= subtotal()
+    && agreedToLose !== voucher!.id;
 
   async function submit() {
-    if (!file || !fulfilment) return;
+    if (!fulfilment) return;
+    if (needsAgreement) { setConfirming(voucher); return; }
+    if (!file && !nothingToPay) return;
     setSubmitting(true); setErr(null); setNotice(null);
     try {
-      const sb = supabase();
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const path = `pending/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const up = await sb.storage.from('slips').upload(path, file, { contentType: file.type, upsert: false });
-      if (up.error) throw up.error;
+      let slip_path: string | null = null;
+      if (file) {
+        const sb = supabase();
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `pending/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const up = await sb.storage.from('slips').upload(path, file, { contentType: file.type, upsert: false });
+        if (up.error) throw up.error;
+        slip_path = up.data.path;
+      }
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -66,22 +93,17 @@ export default function PayPage() {
           })),
           total_satang: subtotal(),
           fulfilment,
-          slip_path: up.data.path,
+          slip_path,
           token,
-          redemption_id: tooSmall ? null : voucher?.id ?? null,
+          redemption_id: voucher?.id ?? null,
         }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string; minimum?: number };
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         if (body.error === 'discount used') {
           setVoucherId(null);
           await reload();
           setNotice(t.discountUsedAlready);
-          setSubmitting(false);
-          return;
-        }
-        if (body.error === 'order too small') {
-          setNotice(t.orderTooSmall((body.minimum ?? 0) / 100));
           setSubmitting(false);
           return;
         }
@@ -119,12 +141,23 @@ export default function PayPage() {
     <>
       <Header title={t.payTitle} back="/checkout" />
       <section className="p-4 text-center">
-        <p className="text-ink-2 text-sm">{t.scanQr}</p>
-        <div className="mt-3 inline-block rounded-2xl bg-white border border-rule p-3">
-          <img src="/qr.jpg" alt="PromptPay QR" className="w-56 h-56 object-contain" />
-        </div>
-        {discount > 0 && !tooSmall && (
-          <div className="mt-2 text-sm space-y-0.5">
+        {nothingToPay ? (
+          <div className="step-rise">
+            <div className="text-5xl float">🎉</div>
+            <div className="serif text-2xl mt-3">{t.nothingToTransfer}</div>
+            <p className="text-ink-2 text-sm mt-1">{t.nothingToTransferNote}</p>
+          </div>
+        ) : (
+          <>
+            <p className="text-ink-2 text-sm">{t.scanQr}</p>
+            <div className="mt-3 inline-block rounded-2xl bg-white border border-rule p-3">
+              <img src="/qr.jpg" alt="PromptPay QR" className="w-56 h-56 object-contain" />
+            </div>
+          </>
+        )}
+
+        {discount > 0 && (
+          <div className="mt-3 text-sm space-y-0.5 text-left">
             <div className="flex justify-between text-ink-2">
               <span>{t.subtotal}</span><span>{baht(subtotal())}</span>
             </div>
@@ -133,9 +166,15 @@ export default function PayPage() {
             </div>
           </div>
         )}
-        <div className="text-ink-3 text-xs mt-2">{t.amountToTransfer}</div>
-        <div key={due} className="pop serif text-3xl">{baht(due)}</div>
-        <p className="text-ink-3 text-xs mt-1">Burassakorn L. · Ref KPS004KB000002337940</p>
+
+        {!nothingToPay && (
+          <>
+            <div className="text-ink-3 text-xs mt-2">{t.amountToTransfer}</div>
+            <div key={due} className="pop serif text-3xl">{baht(due)}</div>
+            <p className="text-ink-3 text-xs mt-1">Burassakorn L. · Ref KPS004KB000002337940</p>
+          </>
+        )}
+        {nothingToPay && <p className="text-ink-3 text-xs mt-3">{t.noPointsOnFree}</p>}
       </section>
 
       {vouchers.length > 0 && (
@@ -145,16 +184,15 @@ export default function PayPage() {
           <ul className="mt-3 space-y-2">
             {vouchers.map((v) => {
               const off = v.discount_satang ?? 0;
-              const doesNotFit = subtotal() <= off;
+              const coversAll = off >= subtotal();
               const picked = v.id === voucherId;
               return (
                 <li key={v.id}>
                   <button
-                    onClick={() => setVoucherId(picked ? null : v.id)}
-                    disabled={doesNotFit && !picked}
+                    onClick={() => pick(v)}
                     className={`w-full rounded-xl border p-3 text-left text-sm transition active:scale-[0.99] ${
                       picked ? 'border-accent bg-accent-soft/20' : 'border-rule bg-white'
-                    } ${doesNotFit && !picked ? 'opacity-50' : ''}`}
+                    }`}
                   >
                     <span className="flex items-center gap-2">
                       <span className={`h-4 w-4 shrink-0 rounded-full border ${
@@ -162,8 +200,8 @@ export default function PayPage() {
                       }`} />
                       <span className="flex-1 min-w-0">
                         <span className="block">{lang === 'th' ? v.reward_title_th : v.reward_title_en}</span>
-                        {doesNotFit && (
-                          <span className="block text-ink-3 text-xs mt-0.5">{t.orderTooSmall(off / 100)}</span>
+                        {coversAll && (
+                          <span className="block text-ink-3 text-xs mt-0.5">{t.coversWholeBill}</span>
                         )}
                       </span>
                       <span className="text-veg font-medium shrink-0">−{baht(off)}</span>
@@ -174,34 +212,39 @@ export default function PayPage() {
             })}
           </ul>
           {voucherId && (
-            <button onClick={() => setVoucherId(null)} className="text-ink-3 text-xs mt-2 underline">
+            <button
+              onClick={() => { setVoucherId(null); setAgreedToLose(null); }}
+              className="text-ink-3 text-xs mt-2 underline"
+            >
               {t.noDiscountUsed}
             </button>
           )}
         </section>
       )}
 
-      <section className="p-4 border-t border-rule">
-        <h2 className="serif text-lg">{t.uploadSlip}</h2>
-        <p className="text-ink-3 text-xs mt-1">{t.uploadSlipSub}</p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-        />
-        {!preview ? (
-          <button onClick={() => fileRef.current?.click()} className="btn-outline mt-3 w-full">
-            {t.chooseSlip}
-          </button>
-        ) : (
-          <div className="mt-3">
-            <img src={preview} alt="slip preview" className="w-full rounded-xl border border-rule" />
-            <button onClick={() => pickFile(null)} className="text-ink-3 text-xs mt-2 underline">{t.chooseOther}</button>
-          </div>
-        )}
-      </section>
+      {!nothingToPay && (
+        <section className="p-4 border-t border-rule">
+          <h2 className="serif text-lg">{t.uploadSlip}</h2>
+          <p className="text-ink-3 text-xs mt-1">{t.uploadSlipSub}</p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+          />
+          {!preview ? (
+            <button onClick={() => fileRef.current?.click()} className="btn-outline mt-3 w-full">
+              {t.chooseSlip}
+            </button>
+          ) : (
+            <div className="mt-3">
+              <img src={preview} alt="slip preview" className="w-full rounded-xl border border-rule" />
+              <button onClick={() => pickFile(null)} className="text-ink-3 text-xs mt-2 underline">{t.chooseOther}</button>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="px-4 pb-2">
         {liffReady && (profile ? (
@@ -217,11 +260,59 @@ export default function PayPage() {
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
         {notice && <div className="text-sm text-accent mb-2">{notice}</div>}
         {err && <div className="text-sm text-accent mb-2">{t.wentWrong}: {err}</div>}
-        {!file && <p className="text-ink-3 text-xs mb-2">{t.uploadToFinish}</p>}
-        <button onClick={submit} disabled={!file || submitting} className="btn-primary w-full disabled:opacity-50">
+        {!file && !nothingToPay && <p className="text-ink-3 text-xs mb-2">{t.uploadToFinish}</p>}
+        {nothingToPay && voucher && (
+          <p className="text-veg text-xs mb-2">
+            🎁 {t.aboutToUseFull(lang === 'th' ? voucher.reward_title_th : voucher.reward_title_en)}
+          </p>
+        )}
+        <button
+          onClick={submit}
+          disabled={(!file && !nothingToPay) || submitting}
+          className="btn-primary w-full disabled:opacity-50"
+        >
           {submitting ? t.sending : t.submitOrder}
         </button>
       </div>
+
+      {confirming && (
+        <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40" onClick={() => setConfirming(null)}>
+          <div className="sheet w-full max-w-md rounded-t-3xl bg-white p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <h2 className="serif text-xl">{t.confirmDiscount}</h2>
+            <p className="text-ink-2 text-sm mt-2">{t.coversWholeBill}</p>
+
+            <div className="mt-3 rounded-xl bg-surface-2 p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-ink-2">{t.subtotal}</span>
+                <span>{baht(subtotal())}</span>
+              </div>
+              <div className="flex justify-between text-veg">
+                <span>{lang === 'th' ? confirming.reward_title_th : confirming.reward_title_en}</span>
+                <span>−{baht(confirming.discount_satang ?? 0)}</span>
+              </div>
+              <div className="flex justify-between font-medium pt-1 border-t border-rule">
+                <span>{t.amountToTransfer}</span>
+                <span>{baht(0)}</span>
+              </div>
+            </div>
+
+            {(confirming.discount_satang ?? 0) > subtotal() && (
+              <p className="text-accent text-sm mt-3">
+                {t.leftoverLost(((confirming.discount_satang ?? 0) - subtotal()) / 100)}
+              </p>
+            )}
+            <p className="text-ink-3 text-xs mt-2">{t.noPointsOnFree}</p>
+
+            <button
+              onClick={() => { setVoucherId(confirming.id); setAgreedToLose(confirming.id); setConfirming(null); }}
+              className="btn-primary w-full mt-4"
+            >
+              {t.useAnyway}
+            </button>
+            <button onClick={() => setConfirming(null)} className="btn-outline w-full mt-2">{t.cancel}</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
