@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const { data: customer } = await sb
     .from('customers')
-    .select('id, display_name, points_balance, created_at')
+    .select('id, display_name, phone, points_balance, created_at')
     .eq('id', found.id)
     .single();
   if (!customer) return NextResponse.json({ error: 'no profile' }, { status: 500 });
@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       picture: who.pictureUrl,
       points: customer.points_balance ?? 0,
       since: customer.created_at,
+      phone: customer.phone ?? null,
     },
     events: events.data ?? [],
     orders: orders.data ?? [],

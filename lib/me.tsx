@@ -19,7 +19,11 @@ export type MyClaim = {
   reject_reason: string | null; created_at: string;
 };
 export type Me = {
-  profile: { id: string; name: string | null; picture: string | null; points: number; since: string };
+  profile: {
+    id: string; name: string | null; picture: string | null; points: number; since: string;
+    /** The number the shop's counter finds them by, once they have given one. */
+    phone: string | null;
+  };
   events: PointEvent[];
   orders: MyOrder[];
   claims: MyClaim[];
