@@ -59,5 +59,5 @@ export type CartLine = {
 };
 
 export type Fulfilment =
-  | { mode: 'pickup' }
+  | { mode: 'pickup'; name: string; phone: string }
   | { mode: 'delivery'; area_slug: 'rwbk' | 'ntw7'; address: string; phone: string; name: string };

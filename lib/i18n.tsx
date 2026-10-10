@@ -183,6 +183,12 @@ const TH = {
   earnBothWays: 'ได้แต้มทั้งสั่งผ่านเว็บและทานที่ร้าน',
   keInstore: 'จากการทานที่ร้าน',
 
+  // Asked for at checkout, whichever way the order is collected
+  yourDetails: 'ชื่อและเบอร์ติดต่อ',
+  detailsWhyPickup: 'ร้านจะเรียกชื่อคุณเมื่ออาหารพร้อม และใช้เบอร์นี้ติดต่อถ้าจำเป็น',
+  detailsWhyDelivery: 'คนส่งใช้ชื่อและเบอร์นี้ในการติดต่อคุณ',
+  phoneSavesToAccount: 'เบอร์นี้จะถูกบันทึกไว้ในบัญชีสมาชิกของคุณ เพื่อให้สะสมแต้มได้ตอนมาทานที่ร้านด้วย',
+
   orderNo: 'คำสั่งซื้อ',
   stepNew: 'รอร้านยืนยัน',
   stepNewNote: 'กำลังตรวจสอบสลิปของคุณ',
@@ -371,6 +377,11 @@ const EN: typeof TH = {
   seeMyPoints: 'See my points',
   earnBothWays: 'Points for ordering online and for eating in',
   keInstore: 'Ate in the shop',
+
+  yourDetails: 'Name and phone',
+  detailsWhyPickup: 'We call your name when the food is ready, and use the number if we need to reach you.',
+  detailsWhyDelivery: 'The rider uses these to reach you.',
+  phoneSavesToAccount: 'We keep this on your member account, so you can earn points when you eat in as well.',
 
   orderNo: 'Order',
   stepNew: 'Waiting for the shop',

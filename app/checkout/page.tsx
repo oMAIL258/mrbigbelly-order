@@ -1,11 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart, useCartHydrated } from '@/lib/cart';
 import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
+import { useMe } from '@/lib/me';
 
 const AREAS = [
   { slug: 'rwbk' as const, label: 'ซอยราชวินิตบางแก้ว' },
@@ -22,21 +23,32 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [edited, setEdited] = useState(false);
+  const { me } = useMe();
+
+  // A returning customer should not type their own name and number again, so
+  // both arrive filled in from their account. Anything already typed is left
+  // alone: the profile may land after they have started.
+  useEffect(() => {
+    if (!me || edited) return;
+    setName((cur) => cur || me.profile.name || '');
+    setPhone((cur) => cur || me.profile.phone || '');
+  }, [me, edited]);
 
   const digits = phone.replace(/\D/g, '');
   const missing: string[] = [];
-  if (mode === 'delivery') {
-    if (!address.trim()) missing.push(t.fieldAddress);
-    if (!name.trim()) missing.push(t.fieldName);
-    if (digits.length < 9) missing.push(t.fieldPhone);
-  }
+  // Asked for either way round: a collection needs a name to call out and a
+  // number to ring when nobody comes.
+  if (!name.trim()) missing.push(t.fieldName);
+  if (digits.length < 9) missing.push(t.fieldPhone);
+  if (mode === 'delivery' && !address.trim()) missing.push(t.fieldAddress);
   const ready = missing.length === 0;
 
   function proceed() {
     if (!ready) return;
     setFulfilment(
       mode === 'pickup'
-        ? { mode: 'pickup' }
+        ? { mode: 'pickup', name: name.trim(), phone: phone.trim() }
         : { mode: 'delivery', area_slug: area, address: address.trim(), phone: phone.trim(), name: name.trim() },
     );
     router.push('/pay');
@@ -100,18 +112,42 @@ export default function CheckoutPage() {
             <label className="text-sm text-ink-2">{t.address}</label>
             <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-sm text-ink-2">{t.name}</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
-            </div>
-            <div>
-              <label className="text-sm text-ink-2">{t.phone}</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" className="mt-1 w-full rounded-xl border border-rule p-2 text-sm" />
-            </div>
-          </div>
         </section>
       )}
+
+      <section className="p-4 border-t border-rule space-y-3">
+        <div>
+          <h2 className="serif text-base">{t.yourDetails}</h2>
+          <p className="text-ink-3 text-xs mt-0.5">
+            {mode === 'pickup' ? t.detailsWhyPickup : t.detailsWhyDelivery}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-sm text-ink-2">{t.name}</label>
+            <input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setEdited(true); }}
+              autoComplete="name"
+              className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-ink-2">{t.phone}</label>
+            <input
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value); setEdited(true); }}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              className="mt-1 w-full rounded-xl border border-rule p-2 text-sm"
+            />
+          </div>
+        </div>
+        {!me?.profile.phone && (
+          <p className="text-ink-3 text-xs">{t.phoneSavesToAccount}</p>
+        )}
+      </section>
 
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
         <div className="flex justify-between mb-3 text-sm">

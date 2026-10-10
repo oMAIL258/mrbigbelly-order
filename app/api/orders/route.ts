@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import type { Fulfilment } from '@/lib/types';
 import { alertStaff } from '@/lib/line-server';
 import { lineUserFromToken } from '@/lib/line-verify';
+import { normalisePhone } from '@/lib/phone';
 
 type OptionLabel = { group: string; label: string; price_delta_satang: number };
 type LinePayload = {
@@ -50,14 +51,30 @@ export async function POST(req: NextRequest) {
   const lineId = verified?.userId ?? body.line_user_id;
   const displayName = verified?.displayName ?? body.display_name;
 
+  // Who to call when the food is ready, asked for on a collection as well as
+  // on a delivery. A cart saved by an older version of the page may carry a
+  // pickup with neither, so neither is assumed to be there.
+  const contactName = body.fulfilment.name?.trim() || null;
+  const contactPhone = normalisePhone(body.fulfilment.phone) ?? null;
+
   let customer_id: string | null = null;
   if (lineId) {
     const upserted = await sb
       .from('customers')
       .upsert({ line_user_id: lineId, display_name: displayName }, { onConflict: 'line_user_id' })
-      .select('id')
+      .select('id, phone')
       .single();
     customer_id = upserted.data?.id ?? null;
+
+    // Giving a number at checkout is how a customer who only ever collects
+    // becomes findable at the counter. It is filled in, never overwritten: a
+    // customer may be ordering for somebody else, and the number already on
+    // the account is the one they chose to register. A number another member
+    // holds is refused by the database and left alone — the shop sorts that
+    // out face to face, and an order must never fail over it.
+    if (customer_id && contactPhone && !upserted.data?.phone) {
+      await sb.from('customers').update({ phone: contactPhone }).eq('id', customer_id);
+    }
   }
 
   // The order is priced from its own lines, so what the customer is asked to
@@ -103,6 +120,8 @@ export async function POST(req: NextRequest) {
     redemption_id,
     fulfilment_mode: body.fulfilment.mode,
     area_slug: body.fulfilment.mode === 'delivery' ? body.fulfilment.area_slug : null,
+    contact_name: contactName,
+    contact_phone: contactPhone,
   }).select('id').single();
   if (insOrder.error) {
     // A unique index means one voucher reaches one order, whatever two taps on
@@ -128,8 +147,8 @@ export async function POST(req: NextRequest) {
       order_id,
       area_slug: body.fulfilment.area_slug,
       address: body.fulfilment.address,
-      contact_name: body.fulfilment.name,
-      contact_phone: body.fulfilment.phone,
+      contact_name: contactName,
+      contact_phone: contactPhone,
     });
   }
 
@@ -168,13 +187,11 @@ export async function POST(req: NextRequest) {
       ? `฿${(paid / 100).toLocaleString('en-US')} (ลด ฿${(discount / 100).toLocaleString('en-US')})`
       : `฿${(paid / 100).toLocaleString('en-US')}`;
 
-  // The shop wants to know who it is before opening the board. A delivery
-  // order carries the name they typed for the rider, which is the one that
-  // matters at the door; their LINE name rides along when it is a different
-  // one. A pickup order outside LINE has no name to give, so the line is left
-  // out rather than printed empty.
+  // The shop wants to know who it is before opening the board. The name typed
+  // at checkout is the one that matters, at the door or at the counter; their
+  // LINE name rides along when it is a different one. An order with no name at
+  // all leaves the line out rather than printing it empty.
   const lineName = displayName?.trim() || null;
-  const contactName = body.fulfilment.mode === 'delivery' ? body.fulfilment.name?.trim() || null : null;
   const customerName = contactName && lineName && contactName !== lineName
     ? `${contactName} (LINE: ${lineName})`
     : contactName ?? lineName;
@@ -182,6 +199,7 @@ export async function POST(req: NextRequest) {
   await alertStaff(
     `🔔 ออเดอร์ใหม่ / NEW ORDER ${order?.short_code ?? ''}\n`
     + (customerName ? `👤 ${customerName}\n` : '')
+    + (contactPhone ? `📞 ${contactPhone}\n` : '')
     + `${pickup ? 'รับที่ร้าน / Pickup' : 'จัดส่ง / Delivery'} · ${total}\n\n`
     + `${items}\n\n`
     + 'เปิดหน้าออเดอร์เพื่อรับออเดอร์\nOpen the order board to accept it.',
