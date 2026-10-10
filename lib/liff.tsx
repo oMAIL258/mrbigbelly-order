@@ -9,6 +9,15 @@ type LiffValue = { ready: boolean; profile: Profile; token: string | null };
 
 const LiffContext = createContext<LiffValue>({ ready: false, profile: null, token: null });
 
+// The SDK is its own chunk, and fetching it is the first thing standing between
+// a customer and their own account. Asking for it while this module is being
+// evaluated starts that fetch a few hundred milliseconds before the provider's
+// first effect would have, which on a phone on mobile data is the difference
+// between a wait and none.
+const sdk = typeof window === 'undefined' ? null : import('@line/liff');
+// Marked as handled here; the provider's own try/catch is what reports it.
+sdk?.catch(() => {});
+
 export function LiffProvider({ children }: { children: React.ReactNode }) {
   const [value, setValue] = useState<LiffValue>({ ready: false, profile: null, token: null });
 
@@ -20,7 +29,7 @@ export function LiffProvider({ children }: { children: React.ReactNode }) {
       let profile: Profile = null;
       let token: string | null = null;
       try {
-        const liff = (await import('@line/liff')).default;
+        const liff = (await (sdk ?? import('@line/liff'))).default;
         await liff.init({ liffId });
         // Never call liff.login(). It is a full-page redirect that returns to
         // the LIFF entry URL, so calling it mid-checkout throws the customer

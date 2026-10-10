@@ -15,6 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="th">
       <head>
+        {/* The LIFF handshake is the first thing a customer waits on, so the
+            connection to LINE is opened before the SDK asks for it. */}
+        <link rel="preconnect" href="https://api.line.me" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

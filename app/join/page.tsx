@@ -1,11 +1,21 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Rules } from '@/components/Rules';
 import { useLang } from '@/lib/i18n';
-import { useMe, invalidateMe } from '@/lib/me';
+import { useLiff } from '@/lib/liff';
+import { invalidateMe } from '@/lib/me';
 import { looksLikeThaiPhone, prettyPhone } from '@/lib/phone';
+
+type Membership = {
+  member: boolean;
+  phone: string | null;
+  points: number;
+  since: string | null;
+  satangPerPoint: number;
+  validMonths: number;
+};
 
 const TZ = 'Asia/Bangkok';
 const day = (iso: string, lang: string) =>
@@ -17,23 +27,52 @@ const day = (iso: string, lang: string) =>
  * gives a phone number, and is a member before the bill is paid. It asks for
  * the number rather than a name because LINE already knows the name, and
  * because the number is the only part the counter needs.
+ *
+ * The box to type in is on screen from the first paint, before LINE has
+ * finished saying who is calling and before the shop's own record has been
+ * looked up. Typing ten digits takes a person longer than either of those
+ * takes the network, so the wait lands on nobody.
  */
 export default function JoinPage() {
-  const { loading, me, needsLine, reload, token } = useMe();
+  const { ready, profile, token } = useLiff();
   const { lang, t } = useLang();
+
+  const [state, setState] = useState<Membership | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [refused, setRefused] = useState(false);
+
   const [phone, setPhone] = useState('');
+  const [touched, setTouched] = useState(false);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [just, setJust] = useState<'joined' | 'updated' | null>(null);
-  // What was actually saved, so the confirmation reads right away rather than
-  // waiting on the profile to come back round.
   const [saved, setSaved] = useState<string | null>(null);
 
-  const registered = me?.profile.phone ?? null;
+  const check = useCallback(async (t0: string) => {
+    const res = await fetch('/api/membership', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: t0 }),
+    });
+    if (!res.ok) { setRefused(true); setChecked(true); return null; }
+    const body = (await res.json()) as Membership;
+    setState(body);
+    setChecked(true);
+    return body;
+  }, []);
 
-  // Changing a number starts from the one on file rather than from nothing.
-  useEffect(() => { if (registered && !editing) setPhone(registered); }, [registered, editing]);
+  useEffect(() => {
+    if (!ready) return;
+    // Outside LINE there is no way to tell whose account a number would go on,
+    // and a membership with nobody attached is worth nothing to either side.
+    if (!token) { setRefused(true); setChecked(true); return; }
+    void check(token).then((body) => {
+      // Their own number goes in the box, unless they are already typing a
+      // different one, which is nobody's business to overwrite.
+      if (body?.phone) setPhone((cur) => (cur ? cur : body.phone!));
+    });
+  }, [ready, token, check]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,34 +92,23 @@ export default function JoinPage() {
     setSaved(body.phone ?? phone);
     setJust(body.joined ? 'joined' : 'updated');
     setEditing(false);
+    setTouched(false);
     // The number is part of the profile every other screen reads.
     invalidateMe();
-    await reload();
+    if (token) void check(token);
   }
 
-  if (loading) {
-    return <><Header title={t.joinTitle} back="/" /><div className="p-6 text-ink-3">{t.loading}</div></>;
-  }
+  const onFile = state?.phone ?? saved;
 
-  // Outside LINE there is no way to tell whose account a number would go on,
-  // and a membership with nobody attached is worth nothing to either side.
-  if (needsLine || !me) {
-    return (
-      <>
-        <Header title={t.joinTitle} back="/" />
-        <div className="p-8 text-center step-rise">
-          <div className="text-5xl float">⭐</div>
-          <p className="text-ink-2 mt-4">{t.joinOpenInLine}</p>
-          <Link href="/" className="btn-outline mt-5 inline-block">{t.backToMenu}</Link>
-        </div>
-      </>
-    );
-  }
+  // One slot on the page, and one decision about what belongs in it.
+  const view =
+    refused ? 'line'
+    : just === 'joined' ? 'joined'
+    : editing ? 'form'
+    : onFile && checked && !touched ? 'member'
+    : 'form';
 
-  // Between saving and the profile coming back the number is known but not yet
-  // on `me`, and the form must not reappear underneath the confirmation.
-  const onFile = registered ?? saved;
-  const showForm = (!onFile && !just) || editing;
+  const name = profile?.displayName ?? '';
 
   return (
     <>
@@ -89,19 +117,19 @@ export default function JoinPage() {
       <section className="px-4 pt-4">
         <div className="points-card rounded-2xl p-5 text-white step-rise">
           <div className="flex items-center gap-3">
-            {me.profile.picture
-              ? <img src={me.profile.picture} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-white/40" />
+            {profile?.pictureUrl
+              ? <img src={profile.pictureUrl} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-white/40" />
               : <span className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center">⭐</span>}
             <div className="min-w-0">
-              <div className="serif text-lg truncate">{me.profile.name ?? ''}</div>
+              <div className="serif text-lg truncate">{name}</div>
               <div className="text-white/70 text-xs">
-    {onFile ? t.memberSince(day(me.profile.since, lang)) : t.joinLead}
+                {onFile && state?.since ? t.memberSince(day(state.since, lang)) : t.joinLead}
               </div>
             </div>
           </div>
-          {onFile && (
+          {onFile && state && (
             <div className="mt-4 flex items-end gap-2">
-              <span className="serif text-4xl leading-none">{me.profile.points}</span>
+              <span className="serif text-4xl leading-none">{state.points}</span>
               <span className="text-white/80 pb-1">{t.pointsWord}</span>
             </div>
           )}
@@ -110,7 +138,15 @@ export default function JoinPage() {
       </section>
 
       <section className="px-4 pt-3 pb-10">
-        {just === 'joined' && !editing && (
+        {view === 'line' && (
+          <div className="card p-6 text-center step-rise">
+            <div className="text-4xl float">⭐</div>
+            <p className="text-ink-2 mt-3">{t.joinOpenInLine}</p>
+            <Link href="/" className="btn-outline mt-4 inline-block">{t.backToMenu}</Link>
+          </div>
+        )}
+
+        {view === 'joined' && (
           <div className="card p-4 text-center step-rise border-veg">
             <div className="text-3xl">🎉</div>
             <h2 className="serif text-lg mt-1">{t.joinDoneTitle}</h2>
@@ -123,7 +159,7 @@ export default function JoinPage() {
           </div>
         )}
 
-        {just !== 'joined' && onFile && !editing && (
+        {view === 'member' && (
           <div className="card p-4">
             <div className="flex items-baseline gap-2">
               <h2 className="serif text-base flex-1">{t.alreadyMember}</h2>
@@ -143,13 +179,13 @@ export default function JoinPage() {
           </div>
         )}
 
-        {showForm && (
+        {view === 'form' && (
           <form onSubmit={submit} className="card p-4 space-y-3">
             <label className="block">
               <span className="text-ink-2 text-sm">{t.joinPhoneLabel}</span>
               <input
                 value={phone}
-                onChange={(e) => { setPhone(e.target.value); setErr(null); }}
+                onChange={(e) => { setPhone(e.target.value); setTouched(true); setErr(null); }}
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
@@ -163,20 +199,20 @@ export default function JoinPage() {
               {onFile && (
                 <button
                   type="button"
-                  onClick={() => { setEditing(false); setPhone(onFile); setErr(null); }}
+                  onClick={() => { setEditing(false); setTouched(false); setPhone(onFile); setErr(null); }}
                   className="btn-outline shrink-0"
                 >
                   {t.cancel}
                 </button>
               )}
-              <button disabled={busy} className="btn-primary flex-1 disabled:opacity-50">
-                {busy ? '…' : onFile ? t.savePhone : t.joinButton}
+              <button disabled={busy || !ready} className="btn-primary flex-1 disabled:opacity-50">
+                {busy || !ready ? '…' : onFile ? t.savePhone : t.joinButton}
               </button>
             </div>
           </form>
         )}
 
-        <Rules satangPerPoint={me.satangPerPoint} validMonths={me.validMonths} />
+        {state && <Rules satangPerPoint={state.satangPerPoint} validMonths={state.validMonths} />}
       </section>
     </>
   );
