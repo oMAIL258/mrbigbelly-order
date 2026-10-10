@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useLiff } from './liff';
 
 export type PointEvent = {
@@ -31,39 +31,115 @@ export type Me = {
   expiring: { points: number; on: string } | null;
 };
 
-/** The approved discounts this customer can spend on an order. */
+/**
+ * Forget what is held, so the next screen asks again. Used after something the
+ * customer did changes their record while they are being taken elsewhere — a
+ * voucher spent on an order would otherwise still read as available on their
+ * profile until the copy went stale on its own.
+ */
+export function invalidateMe() {
+  heldFor = null;
+  heldAt = 0;
+}
+
+/** The approved discounts and rewards this customer still has to spend. */
 export function usableVouchers(me: Me | null): MyClaim[] {
   return (me?.claims ?? []).filter((c) => c.status === 'approved' && c.discount_satang);
 }
 
-type State = { loading: boolean; me: Me | null; needsLine: boolean };
+type Snapshot = { loading: boolean; me: Me | null; needsLine: boolean };
 
-/**
- * The signed-in customer's own record. The LIFF access token goes with every
- * request and the server asks LINE who it belongs to, so a page cannot ask for
- * somebody else's points by typing in their id.
- */
-export function useMe() {
-  const { ready, token } = useLiff();
-  const [state, setState] = useState<State>({ loading: true, me: null, needsLine: false });
+const INITIAL: Snapshot = { loading: true, me: null, needsLine: false };
 
-  const load = useCallback(async () => {
-    if (!ready) return;
-    if (!token) { setState({ loading: false, me: null, needsLine: true }); return; }
+// One answer, shared by every component that asks for it. The profile is read
+// on the menu, the rewards list, the payment screen and the profile itself, and
+// each read costs a round trip to LINE to prove who is calling — so four
+// screens used to mean four of them, on the slowest leg of the journey.
+let snapshot: Snapshot = INITIAL;
+let heldFor: string | null = null;
+let heldAt = 0;
+let inFlight: Promise<void> | null = null;
+const listeners = new Set<() => void>();
+
+// Long enough that moving between screens is free, short enough that a balance
+// is never visibly behind. Anything that changes it — claiming a reward,
+// placing an order — asks for a fresh copy rather than waiting this out.
+const FRESH_MS = 45_000;
+
+function publish(next: Snapshot) {
+  snapshot = next;
+  for (const l of listeners) l();
+}
+
+async function load(token: string, force = false): Promise<void> {
+  // A second screen mounting mid-request waits for the one already going out
+  // instead of sending its own. A forced reload cannot do that: it is asked for
+  // because something just changed, and a reply to a question sent before the
+  // change would not show it.
+  if (inFlight) {
+    if (!force) return inFlight;
+    await inFlight.catch(() => {});
+  }
+  inFlight = (async () => {
     try {
       const res = await fetch('/api/me', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ token }),
       });
-      if (!res.ok) { setState({ loading: false, me: null, needsLine: true }); return; }
-      setState({ loading: false, me: (await res.json()) as Me, needsLine: false });
+      if (!res.ok) {
+        // A refused token means this is not the customer any more. A refusal is
+        // the one case worth forgetting what we hold.
+        heldFor = null;
+        publish({ loading: false, me: null, needsLine: true });
+        return;
+      }
+      heldFor = token;
+      heldAt = Date.now();
+      publish({ loading: false, me: (await res.json()) as Me, needsLine: false });
     } catch {
-      setState({ loading: false, me: null, needsLine: true });
+      // A refresh that could not go out says nothing about the customer, so
+      // what is already on screen stays there rather than their balance
+      // vanishing on a patchy connection.
+      if (!snapshot.me) publish({ loading: false, me: null, needsLine: true });
+    } finally {
+      inFlight = null;
     }
+  })();
+  return inFlight;
+}
+
+/**
+ * The signed-in customer's own record. The LIFF access token goes with every
+ * request and the server asks LINE who it belongs to, so a page cannot ask for
+ * somebody else's points by typing in their id.
+ *
+ * A screen that already has an answer renders it at once and refreshes behind
+ * the scenes, so coming back to the menu is instant rather than a spinner.
+ */
+export function useMe() {
+  const { ready, token } = useLiff();
+  const state = useSyncExternalStore(
+    (onChange) => { listeners.add(onChange); return () => { listeners.delete(onChange); }; },
+    () => snapshot,
+    () => INITIAL,
+  );
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!token) {
+      heldFor = null;
+      if (snapshot.me || snapshot.loading) publish({ loading: false, me: null, needsLine: true });
+      return;
+    }
+    // Somebody else's answer is never shown: a different token starts over.
+    if (heldFor !== token) { void load(token); return; }
+    if (Date.now() - heldAt > FRESH_MS) void load(token);
   }, [ready, token]);
 
-  useEffect(() => { void load(); }, [load]);
+  const reload = useCallback(async () => {
+    if (token) await load(token, true);
+  }, [token]);
 
-  return { ...state, reload: load, token };
+  return { ...state, reload, token };
 }

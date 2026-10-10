@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import { baht } from '@/lib/money';
 import { useCart } from '@/lib/cart';
 import { Header } from '@/components/Header';
@@ -9,36 +8,40 @@ import { OngoingOrder } from '@/components/OngoingOrder';
 import { MemberStrip } from '@/components/MemberStrip';
 import { useLang, pickName } from '@/lib/i18n';
 import { dishTitle, dishSubtitle } from '@/lib/names';
+import { cachedMenu, fetchMenu, menuIsStale } from '@/lib/menu-cache';
 import type { Category, MenuItem, StoreSettings } from '@/lib/types';
 
 export default function MenuPage() {
-  const [cats, setCats] = useState<Category[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [settings, setSettings] = useState<StoreSettings | null>(null);
+  // Whatever the last visit already fetched, so coming back from a dish paints
+  // the menu immediately instead of showing a spinner over the same list.
+  const first = cachedMenu();
+  const [cats, setCats] = useState<Category[]>(first?.cats ?? []);
+  const [items, setItems] = useState<MenuItem[]>(first?.items ?? []);
+  const [settings, setSettings] = useState<StoreSettings | null>(first?.settings ?? null);
   const [active, setActive] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!first);
   const { lang, t } = useLang();
   const lastCategoryId = useCart((s) => s.lastCategoryId);
   const setLastCategoryId = useCart((s) => s.setLastCategoryId);
 
   useEffect(() => {
-    (async () => {
-      const sb = supabase();
-      const [c, i, s] = await Promise.all([
-        sb.from('categories').select('*').order('sort'),
-        sb.from('menu_items').select('*').eq('is_available', true).order('sort'),
-        sb.from('store_settings').select('*').limit(1).maybeSingle(),
-      ]);
-      const categories = (c.data ?? []) as Category[];
-      setCats(categories);
-      setItems((i.data ?? []) as MenuItem[]);
-      if (s.data) setSettings(s.data as StoreSettings);
+    const show = (data: { cats: Category[]; items: MenuItem[]; settings: StoreSettings | null }) => {
+      setCats(data.cats);
+      setItems(data.items);
+      setSettings(data.settings);
       // Come back to the category the customer was browsing, not the first tab.
-      const remembered = categories.find((x) => x.id === lastCategoryId);
-      setActive(remembered?.id ?? categories[0]?.id ?? null);
+      setActive((current) => {
+        if (current && data.cats.some((x) => x.id === current)) return current;
+        const remembered = data.cats.find((x) => x.id === lastCategoryId);
+        return remembered?.id ?? data.cats[0]?.id ?? null;
+      });
       setLoading(false);
-    })();
-    // lastCategoryId is read once on load on purpose: changing tabs must not refetch.
+    };
+
+    if (first) show(first);
+    if (!first || menuIsStale()) void fetchMenu().then(show);
+    // first and lastCategoryId are read once on purpose: switching tabs must
+    // not refetch, and must not jump the customer back to a remembered one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

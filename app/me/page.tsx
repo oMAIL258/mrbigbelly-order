@@ -113,9 +113,25 @@ export default function MePage() {
                   </div>
                   {c.status === 'approved' && (
                     c.discount_satang ? (
-                      <div className="mt-2 rounded-xl bg-veg/10 p-3 text-center">
-                        <div className="serif text-2xl text-veg">−{baht(c.discount_satang)}</div>
-                        <div className="text-ink-2 text-xs mt-1">{t.discountWaiting}</div>
+                      <div className="mt-2 space-y-2">
+                        <div className="rounded-xl bg-veg/10 p-3 text-center">
+                          <div className="serif text-2xl text-veg">−{baht(c.discount_satang)}</div>
+                          <div className="text-ink-2 text-xs mt-0.5">{t.twoWaysTitle}</div>
+                        </div>
+                        <div className="rounded-xl border border-rule p-3 text-sm">
+                          <div className="font-medium">🛒 {t.wayOnline}</div>
+                          <p className="text-ink-3 text-xs mt-0.5">{t.wayOnlineNote}</p>
+                        </div>
+                        <div className="rounded-xl border border-accent p-3 text-sm">
+                          <div className="font-medium">🏪 {t.wayStore}</div>
+                          <p className="text-ink-3 text-xs mt-0.5">{t.wayStoreNote}</p>
+                          {c.code && (
+                            <div className="mt-2 rounded-xl bg-accent-soft/25 py-2 text-center">
+                              <div className="serif text-2xl tracking-[0.2em]">{c.code}</div>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-ink-3 text-[11px] text-center">{t.oneOrTheOther}</p>
                       </div>
                     ) : c.code ? (
                       <div className="mt-2 rounded-xl bg-accent-soft/25 p-3 text-center">

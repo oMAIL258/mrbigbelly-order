@@ -9,7 +9,7 @@ import { Header } from '@/components/Header';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
 import { kitchenName } from '@/lib/names';
-import { useMe, usableVouchers, type MyClaim } from '@/lib/me';
+import { useMe, usableVouchers, invalidateMe, type MyClaim } from '@/lib/me';
 
 export default function PayPage() {
   const router = useRouter();
@@ -111,6 +111,10 @@ export default function PayPage() {
       }
       const { order_id } = (await res.json()) as { order_id: string };
       setActiveOrderId(order_id);
+      // A voucher spent here is no longer available, and the customer is about
+      // to be sent to their order rather than back here, so the next screen to
+      // ask for their record gets a fresh one.
+      invalidateMe();
       clear();
       router.replace(`/order/${order_id}`);
     } catch (e) {

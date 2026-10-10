@@ -24,10 +24,15 @@ export default function DishPage() {
   useEffect(() => {
     (async () => {
       const sb = supabase();
-      const { data: it } = await sb.from('menu_items').select('*').eq('id', id).single();
+      // The dish and its option groups do not depend on each other, so they go
+      // out together: this screen sits between the menu and the cart, and it
+      // used to wait out three trips to Singapore one after another.
+      const [{ data: it }, { data: gs }] = await Promise.all([
+        sb.from('menu_items').select('*').eq('id', id).single(),
+        sb.from('option_groups').select('*').eq('menu_item_id', id).order('sort'),
+      ]);
       if (!it) return;
       setItem(it as MenuItem);
-      const { data: gs } = await sb.from('option_groups').select('*').eq('menu_item_id', id).order('sort');
       const groupIds = (gs ?? []).map((g: { id: string }) => g.id);
       const { data: os } = groupIds.length
         ? await sb.from('options').select('*').in('group_id', groupIds).order('sort')
