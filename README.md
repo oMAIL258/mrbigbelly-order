@@ -23,3 +23,4 @@ Netlify picks up `netlify.toml` automatically. Set these environment variables i
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_LIFF_ID`
 - `SUPABASE_SECRET_KEY` (server-only; used by `/api/orders`)
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` — the keypair that signs the push sent to the shop's own devices when an order arrives. The admin site needs the public half under the same name, or the two will not agree and nothing is delivered. Without them the push is skipped and the LINE alert still goes out.

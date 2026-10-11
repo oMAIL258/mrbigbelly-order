@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Fulfilment } from '@/lib/types';
 import { alertStaff } from '@/lib/line-server';
+import { alertDevices } from '@/lib/push-server';
 import { lineUserFromToken } from '@/lib/line-verify';
 import { normalisePhone } from '@/lib/phone';
 
@@ -195,6 +196,14 @@ export async function POST(req: NextRequest) {
   const customerName = contactName && lineName && contactName !== lineName
     ? `${contactName} (LINE: ${lineName})`
     : contactName ?? lineName;
+
+  // The counter's own terminal, through Android, so the alert arrives even
+  // when the board is behind the till app.
+  await alertDevices(
+    `ออเดอร์ใหม่ / New order ${order?.short_code ?? ''}`.trim(),
+    [customerName, pickup ? 'รับที่ร้าน / Pickup' : 'จัดส่ง / Delivery', total]
+      .filter(Boolean).join(' · '),
+  );
 
   await alertStaff(
     `🔔 ออเดอร์ใหม่ / NEW ORDER ${order?.short_code ?? ''}\n`
