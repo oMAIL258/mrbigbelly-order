@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { lineUserFromToken } from '@/lib/line-verify';
 import { pushLine } from '@/lib/line-server';
 import { normalisePhone, looksLikeThaiPhone } from '@/lib/phone';
+import { announceNewMember } from '@/lib/new-member';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
     const taken = error.code === '23505' || /customers_phone_unique/.test(error.message);
     return NextResponse.json({ error: taken ? 'taken' : error.message }, { status: taken ? 409 : 500 });
   }
+
+  // After the number is on the account, so the shop's alert carries it.
+  await announceNewMember(sb, customer.id);
 
   // Only on the way in. Changing a number later is not worth a message.
   if (isNew) {

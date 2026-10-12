@@ -5,6 +5,7 @@ import { alertStaff } from '@/lib/line-server';
 import { alertDevices } from '@/lib/push-server';
 import { lineUserFromToken } from '@/lib/line-verify';
 import { normalisePhone } from '@/lib/phone';
+import { announceNewMember } from '@/lib/new-member';
 
 type OptionLabel = { group: string; label: string; price_delta_satang: number };
 type LinePayload = {
@@ -76,6 +77,10 @@ export async function POST(req: NextRequest) {
     if (customer_id && contactPhone && !upserted.data?.phone) {
       await sb.from('customers').update({ phone: contactPhone }).eq('id', customer_id);
     }
+  
+    // Their first order is also their first sight of the shop, so the counter
+    // hears about the member as well as the order.
+    if (customer_id) await announceNewMember(sb, customer_id);
   }
 
   // The order is priced from its own lines, so what the customer is asked to
