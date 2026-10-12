@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { lineUserFromToken } from '@/lib/line-verify';
+import { announceNewMember } from '@/lib/new-member';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
     .select('id, display_name, phone, points_balance, created_at')
     .single();
   if (!customer) return NextResponse.json({ error: 'no profile' }, { status: 500 });
+
+  await announceNewMember(sb, customer.id);
 
   let points = customer.points_balance ?? 0;
 

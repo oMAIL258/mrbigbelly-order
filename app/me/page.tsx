@@ -7,10 +7,7 @@ import { useLang } from '@/lib/i18n';
 import { useMe, type MyClaim } from '@/lib/me';
 import { Rules } from '@/components/Rules';
 import { baht } from '@/lib/money';
-
-const TZ = 'Asia/Bangkok';
-const day = (iso: string, lang: string) =>
-  new Date(iso).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: TZ });
+import { dayLabel, stamp } from '@/lib/when';
 
 export default function MePage() {
   const { loading, me, needsLine } = useMe();
@@ -61,7 +58,7 @@ export default function MePage() {
               : <span className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center">⭐</span>}
             <div className="min-w-0">
               <div className="serif text-lg truncate">{me.profile.name ?? ''}</div>
-              <div className="text-white/70 text-xs">{t.memberSince(day(me.profile.since, lang))}</div>
+              <div className="text-white/70 text-xs">{t.memberSince(dayLabel(me.profile.since, lang, t))}</div>
             </div>
           </div>
 
@@ -75,7 +72,7 @@ export default function MePage() {
           {me.profile.points > 0 && (
             <div className="text-white/70 text-xs mt-1">
               {me.expiring
-                ? t.expiryLine(me.expiring.points, day(me.expiring.on, lang))
+                ? t.expiryLine(me.expiring.points, dayLabel(me.expiring.on, lang, t))
                 : t.neverExpires}
             </div>
           )}
@@ -111,7 +108,7 @@ export default function MePage() {
                     <span className="chip">{claimLabel(c.status)}</span>
                   </div>
                   <div className="text-ink-3 text-xs mt-1">
-                    −{c.points_cost} {t.pointsWord} · {day(c.created_at, lang)}
+                    −{c.points_cost} {t.pointsWord} · {stamp(c.created_at, lang, t)}
                   </div>
                   {c.status === 'approved' && (
                     c.discount_satang ? (
@@ -163,7 +160,7 @@ export default function MePage() {
                     <span className="block">{kind(e.kind)}</span>
                     {e.note && <span className="block text-ink-3 text-xs truncate">{e.note}</span>}
                   </span>
-                  <span className="text-ink-3 text-xs shrink-0">{day(e.created_at, lang)}</span>
+                  <span className="text-ink-3 text-xs shrink-0">{stamp(e.created_at, lang, t)}</span>
                 </li>
               ))}
             </ul>
@@ -178,7 +175,7 @@ export default function MePage() {
                   <Link href={`/order/${o.id}`} className="card block p-3 hover:border-ink-3">
                     <div className="flex justify-between items-baseline">
                       <span className="serif text-sm">{o.short_code ?? o.id.slice(0, 6)}</span>
-                      <span className="text-ink-3 text-xs">{day(o.created_at, lang)}</span>
+                      <span className="text-ink-3 text-xs">{stamp(o.created_at, lang, t)}</span>
                     </div>
                     <div className="text-ink-3 text-xs mt-1 truncate">
                       {o.order_items.map((i) => `${i.qty}× ${i.name_snapshot}`).join(', ')}

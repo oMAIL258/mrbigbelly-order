@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { Rules } from '@/components/Rules';
 import { useLang } from '@/lib/i18n';
+import { dayLabel } from '@/lib/when';
 import { useLiff } from '@/lib/liff';
 import { invalidateMe } from '@/lib/me';
 import { looksLikeThaiPhone, prettyPhone } from '@/lib/phone';
@@ -16,10 +17,6 @@ type Membership = {
   satangPerPoint: number;
   validMonths: number;
 };
-
-const TZ = 'Asia/Bangkok';
-const day = (iso: string, lang: string) =>
-  new Date(iso).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', timeZone: TZ });
 
 /**
  * Signing up, and nothing else. This is the page behind the "register" button
@@ -123,7 +120,7 @@ export default function JoinPage() {
             <div className="min-w-0">
               <div className="serif text-lg truncate">{name}</div>
               <div className="text-white/70 text-xs">
-                {onFile && state?.since ? t.memberSince(day(state.since, lang)) : t.joinLead}
+                {onFile && state?.since ? t.memberSince(dayLabel(state.since, lang, t)) : t.joinLead}
               </div>
             </div>
           </div>

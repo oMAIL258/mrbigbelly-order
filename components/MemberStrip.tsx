@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { CountUp } from './CountUp';
 import { useLang } from '@/lib/i18n';
+import { dayLabel } from '@/lib/when';
 import { useMe } from '@/lib/me';
 
 /**
@@ -12,10 +13,8 @@ import { useMe } from '@/lib/me';
  * opening the rewards, rather than a menu with no sign the shop has points at
  * all — which reads as missing rather than as "not here yet".
  */
-const expiryDay = (iso: string, lang: string) =>
-  new Date(iso).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', {
-    day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok',
-  });
+const expiryDay = (iso: string, lang: 'th' | 'en', words: { today: string; yesterday: string }) =>
+  dayLabel(iso, lang, words);
 
 export function MemberStrip() {
   const { me, loading, needsLine } = useMe();
@@ -52,7 +51,7 @@ export function MemberStrip() {
             </div>
             {me.expiring && me.profile.points > 0 && (
               <div className="text-white/60 text-[11px] mt-0.5 truncate">
-                {t.expiryLine(me.expiring.points, expiryDay(me.expiring.on, lang))}
+                {t.expiryLine(me.expiring.points, expiryDay(me.expiring.on, lang, t))}
               </div>
             )}
           </div>

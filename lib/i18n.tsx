@@ -83,6 +83,8 @@ const TH = {
   rrOther: 'เหตุผลอื่น',
   // Points and rewards
   myPoints: 'แต้มของฉัน',
+  today: 'วันนี้',
+  yesterday: 'เมื่อวาน',
   pointsWord: 'แต้ม',
   rewardsTitle: 'ของรางวัล',
   browseRewards: 'ดูของรางวัล',
@@ -279,6 +281,8 @@ const EN: typeof TH = {
   rrArea: 'Delivery area not covered',
   rrOther: 'Another reason',
   myPoints: 'My points',
+  today: 'Today',
+  yesterday: 'Yesterday',
   pointsWord: 'points',
   rewardsTitle: 'Rewards',
   browseRewards: 'See rewards',
