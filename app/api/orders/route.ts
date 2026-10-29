@@ -7,7 +7,7 @@ import { lineUserFromToken } from '@/lib/line-verify';
 import { normalisePhone } from '@/lib/phone';
 import { announceNewMember } from '@/lib/new-member';
 import { categoryOpen, clock, shopMinutes } from '@/lib/hours';
-import { priceDeal, promoLive, PROMO_GRACE_MINUTES } from '@/lib/promo';
+import { pickupOnly, priceDeal, promoLive, PROMO_GRACE_MINUTES } from '@/lib/promo';
 import type { Category, Promotion } from '@/lib/types';
 
 type OptionLabel = { group: string; label: string; price_delta_satang: number };
@@ -118,7 +118,8 @@ export async function POST(req: NextRequest) {
   const claimed = Math.max(0, Math.round(body.promo_discount_satang ?? 0));
   if (claimed > 0 && body.promotion_id) {
     const { data: promo } = await sb.from('promotions').select('*').eq('id', body.promotion_id).maybeSingle();
-    if (promo && promoLive(promo as Promotion, now, PROMO_GRACE_MINUTES)) {
+    const forThis = promo && !(body.fulfilment.mode === 'delivery' && pickupOnly(promo as Promotion));
+    if (forThis && promoLive(promo as Promotion, now, PROMO_GRACE_MINUTES)) {
       promoOff = Math.min(claimed, priceDeal(promo as Promotion, body.lines).off, subtotal);
       if (promoOff > 0) promotion_id = (promo as Promotion).id;
     }

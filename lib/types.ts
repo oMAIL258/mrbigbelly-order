@@ -15,6 +15,9 @@ export type Promotion = {
   bundle_qty: number;
   bundle_price_satang: number;
   item_ids: string[];
+  /** Absent until sql/12 has been run; read as true, which is how the shop
+   *  runs its deals. */
+  pickup_only?: boolean;
 };
 
 export type StoreSettings = {

@@ -8,7 +8,7 @@ import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
 import { dishTitle, dishSubtitle, optionGroupName, optionLabel } from '@/lib/names';
 import { categoryOpen, clock } from '@/lib/hours';
-import { promoLive } from '@/lib/promo';
+import { pickupOnly, promoLive } from '@/lib/promo';
 import { useMenuData, useShopMinutes } from '@/lib/use-hours';
 import type { Category, MenuItem, OptionGroup, OptionRow } from '@/lib/types';
 
@@ -125,7 +125,11 @@ export default function DishPage() {
             </span>
           )}
         </div>
-        {deal && <p className="text-veg text-xs mt-1">{lang === 'th' ? deal.title_th : deal.title_en}</p>}
+        {deal && (
+          <p className="text-veg text-xs mt-1">
+            {lang === 'th' ? deal.title_th : deal.title_en}{pickupOnly(deal) && ` · ${t.pickupOnlyDeal}`}
+          </p>
+        )}
       </div>
 
       {groups.map((g) => {

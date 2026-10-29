@@ -216,6 +216,8 @@ const TH = {
   dealChip: (n: number, b: number) => `${n} แก้ว ฿${b}`,
   dealAddMore: (n: number) => `เพิ่มอีก ${n} แก้ว เพื่อรับโปรฯ`,
   promoApplied: 'โปรโมชั่น',
+  pickupOnlyDeal: 'เฉพาะสั่งแบบมารับที่ร้าน',
+  dealNotForDelivery: (title: string) => `${title} ใช้ได้เฉพาะมารับที่ร้าน ไม่รวมการจัดส่ง`,
 };
 
 const EN: typeof TH = {
@@ -422,6 +424,8 @@ const EN: typeof TH = {
   dealChip: (n, b) => `${n} for ฿${b}`,
   dealAddMore: (n) => `Add ${n} more to get the deal`,
   promoApplied: 'Promotion',
+  pickupOnlyDeal: 'Pickup orders only',
+  dealNotForDelivery: (title) => `${title} is for pickup only, so it isn't taken off a delivery.`,
 };
 
 const DICT = { th: TH, en: EN };
