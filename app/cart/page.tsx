@@ -7,6 +7,7 @@ import { useLang } from '@/lib/i18n';
 import { lineName, optionLabel } from '@/lib/names';
 import { clock } from '@/lib/hours';
 import { useCartPricing } from '@/lib/use-hours';
+import { pickupOnly } from '@/lib/promo';
 
 export default function CartPage() {
   const { lines, setQty, remove, subtotal } = useCart();
@@ -67,6 +68,9 @@ export default function CartPage() {
                   <span>{baht(subtotal() - promoOff)}</span>
                 </div>
               </>
+            )}
+            {promoOff > 0 && pickupOnly(deal!.promo) && (
+              <p className="text-ink-3 text-xs">{t.pickupOnlyDeal}</p>
             )}
             {deal && deal.short > 0 && deal.eligible > 0 && (
               <p className="text-veg text-xs mt-1">☕ {t.dealAddMore(deal.short)}</p>

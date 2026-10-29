@@ -10,7 +10,7 @@ import { useLang, pickName } from '@/lib/i18n';
 import { dishTitle, dishSubtitle } from '@/lib/names';
 import { cachedMenu, fetchMenu, menuIsStale } from '@/lib/menu-cache';
 import { categoryOpen, clock } from '@/lib/hours';
-import { promoLive } from '@/lib/promo';
+import { pickupOnly, promoLive } from '@/lib/promo';
 import { useShopMinutes } from '@/lib/use-hours';
 import type { Category, MenuItem, Promotion, StoreSettings } from '@/lib/types';
 
@@ -88,7 +88,9 @@ export default function MenuPage() {
       {!closed && deals.map((p) => (
         <div key={p.id} className="mx-4 mb-2 rounded-xl border border-veg bg-white p-3">
           <div className="serif text-base">☕ {lang === 'th' ? p.title_th : p.title_en}</div>
-          <p className="text-ink-3 text-xs mt-0.5">{t.dealUntil(clock(p.ends_at))}</p>
+          <p className="text-ink-3 text-xs mt-0.5">
+            {t.dealUntil(clock(p.ends_at))}{pickupOnly(p) && ` · ${t.pickupOnlyDeal}`}
+          </p>
         </div>
       ))}
 

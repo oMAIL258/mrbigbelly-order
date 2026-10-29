@@ -8,6 +8,7 @@ import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
 import { useMe } from '@/lib/me';
 import { useCartPricing } from '@/lib/use-hours';
+import { pickupOnly } from '@/lib/promo';
 
 const AREAS = [
   { slug: 'rwbk' as const, label: 'ซอยราชวินิตบางแก้ว' },
@@ -18,7 +19,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { lines, subtotal, setFulfilment } = useCart();
   const hydrated = useCartHydrated();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [mode, setMode] = useState<'pickup' | 'delivery'>('pickup');
   const [area, setArea] = useState<'rwbk' | 'ntw7'>('rwbk');
   const [address, setAddress] = useState('');
@@ -26,7 +27,11 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState('');
   const [edited, setEdited] = useState(false);
   const { me } = useMe();
-  const { promoOff } = useCartPricing(lines);
+  const { promoOff } = useCartPricing(lines, 0, mode);
+  // What the deal would have taken off a collection, so a customer choosing
+  // delivery is told why the total went up rather than left to wonder.
+  const { deal: pickupDeal } = useCartPricing(lines, 0, 'pickup');
+  const lostDeal = mode === 'delivery' && pickupDeal && pickupDeal.off > 0 && pickupOnly(pickupDeal.promo) ? pickupDeal : null;
 
   // A returning customer should not type their own name and number again, so
   // both arrive filled in from their account. Anything already typed is left
@@ -156,6 +161,11 @@ export default function CheckoutPage() {
           <span className="text-ink-2">{t.total}</span>
           <span className="font-medium">{baht(subtotal() - promoOff)}</span>
         </div>
+        {lostDeal && (
+          <p className="text-accent text-xs mb-2">
+            {t.dealNotForDelivery(lang === 'th' ? lostDeal.promo.title_th : lostDeal.promo.title_en)}
+          </p>
+        )}
         {!ready && (
           <p className="text-accent text-xs mb-2">{t.fillToContinue(missing.join(', '))}</p>
         )}

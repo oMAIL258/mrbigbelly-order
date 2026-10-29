@@ -4,6 +4,10 @@ import { toMinutes } from './hours';
 import type { Promotion } from './types';
 
 type PricedLine = { item_id: string; qty: number; line_total_satang: number };
+export type Mode = 'pickup' | 'delivery';
+
+/** Deals are for collecting at the counter unless the shop says otherwise. */
+export const pickupOnly = (p: Promotion) => p.pickup_only !== false;
 
 /** A deal that ended this long ago is still honoured for a cart priced under it,
  *  so somebody transferring at 09:59 is not charged more at 10:01. */
@@ -49,11 +53,13 @@ export function priceDeal(p: Promotion, lines: PricedLine[]): PromoResult {
 }
 
 /** The live deal worth the most to this cart, or the first live one when none
- *  applies yet, so the cart can say what to add. */
-export function bestDeal(promos: Promotion[], lines: PricedLine[], now: number, grace = 0): PromoResult | null {
+ *  applies yet, so the cart can say what to add. A delivery gets no pickup-only
+ *  deal; before the customer has chosen, every deal is counted. */
+export function bestDeal(promos: Promotion[], lines: PricedLine[], now: number, grace = 0, mode?: Mode): PromoResult | null {
   let best: PromoResult | null = null;
   for (const p of promos) {
     if (!promoLive(p, now, grace)) continue;
+    if (mode === 'delivery' && pickupOnly(p)) continue;
     const r = priceDeal(p, lines);
     if (!best || r.off > best.off || (r.off === best.off && r.eligible > best.eligible)) best = r;
   }

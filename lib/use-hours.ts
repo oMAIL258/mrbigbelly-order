@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { cachedMenu, fetchMenu, menuIsStale, type MenuData } from './menu-cache';
 import { categoryOpen, shopMinutes } from './hours';
-import { bestDeal } from './promo';
+import { bestDeal, type Mode } from './promo';
 import type { CartLine } from './types';
 
 /** The shop's clock, ticking over by itself, so the menu opens at 09:00 and the
@@ -31,12 +31,12 @@ export function useMenuData() {
 /** What the cart comes to now: the deal on, what it takes off, and the lines
  *  that cannot be ordered yet. The payment screen passes a grace period, so a
  *  deal does not vanish between the customer transferring and pressing send. */
-export function useCartPricing(lines: CartLine[], grace = 0) {
+export function useCartPricing(lines: CartLine[], grace = 0, mode?: Mode) {
   const menu = useMenuData();
   const now = useShopMinutes();
   const cats = new Map((menu?.cats ?? []).map((c) => [c.id, c]));
   const itemCat = new Map((menu?.items ?? []).map((i) => [i.id, i.category_id]));
-  const deal = bestDeal(menu?.promos ?? [], lines, now, grace);
+  const deal = bestDeal(menu?.promos ?? [], lines, now, grace, mode);
   // A line from a category that opens later, with the time it opens.
   const notYet = new Map<string, string>();
   for (const l of lines) {

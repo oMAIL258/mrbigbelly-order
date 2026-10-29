@@ -40,7 +40,7 @@ export default function PayPage() {
   }
 
   // The morning deal comes off first, and a voucher is spent on what is left.
-  const { deal, promoOff, notYet } = useCartPricing(lines, PROMO_GRACE_MINUTES);
+  const { deal, promoOff, notYet } = useCartPricing(lines, PROMO_GRACE_MINUTES, fulfilment?.mode);
   const afterDeal = subtotal() - promoOff;
 
   const vouchers = usableVouchers(me);
