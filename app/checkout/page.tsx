@@ -7,6 +7,7 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
 import { useMe } from '@/lib/me';
+import { useCartPricing } from '@/lib/use-hours';
 
 const AREAS = [
   { slug: 'rwbk' as const, label: 'ซอยราชวินิตบางแก้ว' },
@@ -25,6 +26,7 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState('');
   const [edited, setEdited] = useState(false);
   const { me } = useMe();
+  const { promoOff } = useCartPricing(lines);
 
   // A returning customer should not type their own name and number again, so
   // both arrive filled in from their account. Anything already typed is left
@@ -152,7 +154,7 @@ export default function CheckoutPage() {
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
         <div className="flex justify-between mb-3 text-sm">
           <span className="text-ink-2">{t.total}</span>
-          <span className="font-medium">{baht(subtotal())}</span>
+          <span className="font-medium">{baht(subtotal() - promoOff)}</span>
         </div>
         {!ready && (
           <p className="text-accent text-xs mb-2">{t.fillToContinue(missing.join(', '))}</p>

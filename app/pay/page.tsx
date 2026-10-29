@@ -10,6 +10,8 @@ import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
 import { kitchenName } from '@/lib/names';
 import { useMe, usableVouchers, invalidateMe, type MyClaim } from '@/lib/me';
+import { useCartPricing } from '@/lib/use-hours';
+import { PROMO_GRACE_MINUTES } from '@/lib/promo';
 
 export default function PayPage() {
   const router = useRouter();
@@ -37,21 +39,25 @@ export default function PayPage() {
     setPreview(f ? URL.createObjectURL(f) : null);
   }
 
+  // The morning deal comes off first, and a voucher is spent on what is left.
+  const { deal, promoOff, notYet } = useCartPricing(lines, PROMO_GRACE_MINUTES);
+  const afterDeal = subtotal() - promoOff;
+
   const vouchers = usableVouchers(me);
   // A voucher saved from an earlier visit may have been spent since, so the
   // one in hand only counts while the server still lists it.
   const voucher = vouchers.find((v) => v.id === voucherId) ?? null;
   // Only the part that covers the bill comes off it. A voucher worth more than
   // the order is spent all the same, which is why it is confirmed first.
-  const discount = Math.min(voucher?.discount_satang ?? 0, subtotal());
-  const due = subtotal() - discount;
+  const discount = Math.min(voucher?.discount_satang ?? 0, afterDeal);
+  const due = afterDeal - discount;
   const nothingToPay = Boolean(voucher) && due === 0;
 
   // Picking one that covers the whole bill throws the rest of it away, so it
   // is asked about rather than just applied.
   function pick(v: MyClaim) {
     if (v.id === voucherId) { setVoucherId(null); setAgreedToLose(null); return; }
-    if ((v.discount_satang ?? 0) >= subtotal()) { setConfirming(v); return; }
+    if ((v.discount_satang ?? 0) >= afterDeal) { setConfirming(v); return; }
     setVoucherId(v.id);
   }
 
@@ -61,7 +67,7 @@ export default function PayPage() {
   // again at the last moment, and only a yes against the amount now on screen
   // lets the order through.
   const needsAgreement = Boolean(voucher)
-    && (voucher!.discount_satang ?? 0) >= subtotal()
+    && (voucher!.discount_satang ?? 0) >= afterDeal
     && agreedToLose !== voucher!.id;
 
   async function submit() {
@@ -96,6 +102,10 @@ export default function PayPage() {
           slip_path,
           token,
           redemption_id: voucher?.id ?? null,
+          // What this screen took off, so the server never takes off more than
+          // the customer was shown, nor less once the deal has just ended.
+          promotion_id: promoOff > 0 ? deal!.promo.id : null,
+          promo_discount_satang: promoOff,
         }),
       });
       if (!res.ok) {
@@ -160,14 +170,21 @@ export default function PayPage() {
           </>
         )}
 
-        {discount > 0 && (
+        {(discount > 0 || promoOff > 0) && (
           <div className="mt-3 text-sm space-y-0.5 text-left">
             <div className="flex justify-between text-ink-2">
               <span>{t.subtotal}</span><span>{baht(subtotal())}</span>
             </div>
-            <div className="flex justify-between text-veg">
-              <span>{t.discountApplied}</span><span>−{baht(discount)}</span>
-            </div>
+            {promoOff > 0 && (
+              <div className="flex justify-between text-veg">
+                <span>{lang === 'th' ? deal!.promo.title_th : deal!.promo.title_en}</span><span>−{baht(promoOff)}</span>
+              </div>
+            )}
+            {discount > 0 && (
+              <div className="flex justify-between text-veg">
+                <span>{t.discountApplied}</span><span>−{baht(discount)}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -188,7 +205,7 @@ export default function PayPage() {
           <ul className="mt-3 space-y-2">
             {vouchers.map((v) => {
               const off = v.discount_satang ?? 0;
-              const coversAll = off >= subtotal();
+              const coversAll = off >= afterDeal;
               const picked = v.id === voucherId;
               return (
                 <li key={v.id}>
@@ -264,6 +281,7 @@ export default function PayPage() {
       <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
         {notice && <div className="text-sm text-accent mb-2">{notice}</div>}
         {err && <div className="text-sm text-accent mb-2">{t.wentWrong}: {err}</div>}
+        {notYet.size > 0 && <p className="text-accent text-xs mb-2">{t.notYetBlock}</p>}
         {!file && !nothingToPay && <p className="text-ink-3 text-xs mb-2">{t.uploadToFinish}</p>}
         {nothingToPay && voucher && (
           <p className="text-veg text-xs mb-2">
@@ -272,7 +290,7 @@ export default function PayPage() {
         )}
         <button
           onClick={submit}
-          disabled={(!file && !nothingToPay) || submitting}
+          disabled={(!file && !nothingToPay) || submitting || notYet.size > 0}
           className="btn-primary w-full disabled:opacity-50"
         >
           {submitting ? t.sending : t.submitOrder}
@@ -288,7 +306,7 @@ export default function PayPage() {
             <div className="mt-3 rounded-xl bg-surface-2 p-3 text-sm space-y-1">
               <div className="flex justify-between">
                 <span className="text-ink-2">{t.subtotal}</span>
-                <span>{baht(subtotal())}</span>
+                <span>{baht(afterDeal)}</span>
               </div>
               <div className="flex justify-between text-veg">
                 <span>{lang === 'th' ? confirming.reward_title_th : confirming.reward_title_en}</span>
@@ -300,9 +318,9 @@ export default function PayPage() {
               </div>
             </div>
 
-            {(confirming.discount_satang ?? 0) > subtotal() && (
+            {(confirming.discount_satang ?? 0) > afterDeal && (
               <p className="text-accent text-sm mt-3">
-                {t.leftoverLost(((confirming.discount_satang ?? 0) - subtotal()) / 100)}
+                {t.leftoverLost(((confirming.discount_satang ?? 0) - afterDeal) / 100)}
               </p>
             )}
             <p className="text-ink-3 text-xs mt-2">{t.noPointsOnFree}</p>

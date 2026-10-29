@@ -5,10 +5,13 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
 import { lineName, optionLabel } from '@/lib/names';
+import { clock } from '@/lib/hours';
+import { useCartPricing } from '@/lib/use-hours';
 
 export default function CartPage() {
   const { lines, setQty, remove, subtotal } = useCart();
   const { t, lang } = useLang();
+  const { deal, promoOff, notYet } = useCartPricing(lines);
   return (
     <>
       <Header title={t.yourCart} back="/" />
@@ -31,6 +34,9 @@ export default function CartPage() {
                       </ul>
                     )}
                     {l.note && <div className="text-ink-3 text-xs mt-1 italic">“{l.note}”</div>}
+                    {notYet.has(l.key) && (
+                      <div className="text-accent text-xs mt-1">🕘 {t.notYetLine(clock(notYet.get(l.key)!))}</div>
+                    )}
                   </div>
                   <div className="text-right whitespace-nowrap">
                     <div className="font-medium">{baht(l.line_total_satang)}</div>
@@ -46,11 +52,34 @@ export default function CartPage() {
             ))}
           </ul>
           <div className="sticky bottom-0 bg-bg/95 backdrop-blur border-t border-rule px-4 py-3">
-            <div className="flex justify-between mb-3 text-sm">
+            <div className={`flex justify-between text-sm ${deal ? 'mb-1' : 'mb-3'}`}>
               <span className="text-ink-2">{t.subtotal}</span>
-              <span className="font-medium">{baht(subtotal())}</span>
+              <span className={promoOff > 0 ? 'text-ink-2' : 'font-medium'}>{baht(subtotal())}</span>
             </div>
-            <Link href="/checkout" className="btn-primary w-full">{t.checkout}</Link>
+            {promoOff > 0 && (
+              <>
+                <div className="flex justify-between text-sm text-veg">
+                  <span>{lang === 'th' ? deal!.promo.title_th : deal!.promo.title_en}</span>
+                  <span>−{baht(promoOff)}</span>
+                </div>
+                <div className="flex justify-between mt-1 text-sm font-medium">
+                  <span>{t.total}</span>
+                  <span>{baht(subtotal() - promoOff)}</span>
+                </div>
+              </>
+            )}
+            {deal && deal.short > 0 && deal.eligible > 0 && (
+              <p className="text-veg text-xs mt-1">☕ {t.dealAddMore(deal.short)}</p>
+            )}
+            <div className="mb-3" />
+            {notYet.size > 0 ? (
+              <>
+                <p className="text-accent text-xs mb-2">{t.notYetBlock}</p>
+                <button disabled className="btn-primary w-full opacity-50">{t.checkout}</button>
+              </>
+            ) : (
+              <Link href="/checkout" className="btn-primary w-full">{t.checkout}</Link>
+            )}
           </div>
         </>
       )}

@@ -1,4 +1,21 @@
-export type Category = { id: string; slug: string; name_en: string; name_th: string | null; sort: number };
+export type Category = {
+  id: string; slug: string; name_en: string; name_th: string | null; sort: number;
+  /** '09:00:00' when the category cannot be ordered before then. Absent until
+   *  sql/11 has been run, which reads the same as all day. */
+  available_from?: string | null;
+};
+
+export type Promotion = {
+  id: string;
+  title_th: string;
+  title_en: string;
+  is_active: boolean;
+  starts_at: string;
+  ends_at: string;
+  bundle_qty: number;
+  bundle_price_satang: number;
+  item_ids: string[];
+};
 
 export type StoreSettings = {
   id: string;

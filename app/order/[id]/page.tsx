@@ -14,6 +14,7 @@ type Order = {
   status: 'new' | 'confirmed' | 'ready' | 'done' | 'rejected';
   subtotal_satang: number | null;
   discount_satang: number | null;
+  promo_discount_satang?: number | null;
   total_satang: number;
   fulfilment_mode: 'pickup' | 'delivery';
   prep_minutes: number | null;
@@ -121,19 +122,27 @@ export default function OrderStatusPage() {
       </ol>
 
       <section className="px-4 py-6 mt-2 border-t border-rule">
-        {order.discount_satang ? (
+        {order.discount_satang || order.promo_discount_satang ? (
           <>
             <div className="flex justify-between text-sm">
               <span className="text-ink-2">{t.subtotal}</span>
               <span>{baht(order.subtotal_satang ?? order.total_satang)}</span>
             </div>
-            <div className="flex justify-between text-sm text-veg mt-1">
-              <span>{t.discountApplied}</span>
-              <span>−{baht(order.discount_satang)}</span>
-            </div>
+            {order.promo_discount_satang ? (
+              <div className="flex justify-between text-sm text-veg mt-1">
+                <span>{t.promoApplied}</span>
+                <span>−{baht(order.promo_discount_satang)}</span>
+              </div>
+            ) : null}
+            {order.discount_satang ? (
+              <div className="flex justify-between text-sm text-veg mt-1">
+                <span>{t.discountApplied}</span>
+                <span>−{baht(order.discount_satang)}</span>
+              </div>
+            ) : null}
           </>
         ) : null}
-        <div className={`flex justify-between text-sm ${order.discount_satang ? 'mt-1' : ''}`}>
+        <div className={`flex justify-between text-sm ${order.discount_satang || order.promo_discount_satang ? 'mt-1' : ''}`}>
           <span className="text-ink-2">{t.totalPaid}</span>
           <span className="font-medium">{baht(order.total_satang)}</span>
         </div>

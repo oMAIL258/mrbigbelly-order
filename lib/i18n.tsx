@@ -205,6 +205,17 @@ const TH = {
   onTheWay: 'กำลังเดินทางไปหาคุณ',
   totalPaid: 'ยอดที่ชำระ',
   fulfilment: 'รูปแบบการรับ',
+
+  // Morning hours and deals
+  fromTime: (t: string) => `สั่งได้ตั้งแต่ ${t} น.`,
+  notYetTitle: (t: string) => `เมนูหมวดนี้สั่งได้ตั้งแต่ ${t} น.`,
+  notYetButton: (t: string) => `สั่งได้ตั้งแต่ ${t} น.`,
+  notYetLine: (t: string) => `สั่งได้ตั้งแต่ ${t} น. ลบออกหรือรอถึงเวลาก่อน`,
+  notYetBlock: 'มีรายการที่ยังสั่งไม่ได้ในเวลานี้',
+  dealUntil: (t: string) => `ถึง ${t} น. วันนี้`,
+  dealChip: (n: number, b: number) => `${n} แก้ว ฿${b}`,
+  dealAddMore: (n: number) => `เพิ่มอีก ${n} แก้ว เพื่อรับโปรฯ`,
+  promoApplied: 'โปรโมชั่น',
 };
 
 const EN: typeof TH = {
@@ -401,6 +412,16 @@ const EN: typeof TH = {
   onTheWay: 'On the way to you now.',
   totalPaid: 'Total paid',
   fulfilment: 'Fulfilment',
+
+  fromTime: (t) => `From ${t}`,
+  notYetTitle: (t) => `This part of the menu starts at ${t}`,
+  notYetButton: (t) => `Available from ${t}`,
+  notYetLine: (t) => `Available from ${t}. Remove it, or wait until then.`,
+  notYetBlock: 'Something in your cart cannot be ordered yet.',
+  dealUntil: (t) => `Until ${t} today`,
+  dealChip: (n, b) => `${n} for ฿${b}`,
+  dealAddMore: (n) => `Add ${n} more to get the deal`,
+  promoApplied: 'Promotion',
 };
 
 const DICT = { th: TH, en: EN };
