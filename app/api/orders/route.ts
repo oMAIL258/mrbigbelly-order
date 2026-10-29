@@ -6,6 +6,9 @@ import { alertDevices } from '@/lib/push-server';
 import { lineUserFromToken } from '@/lib/line-verify';
 import { normalisePhone } from '@/lib/phone';
 import { announceNewMember } from '@/lib/new-member';
+import { categoryOpen, clock, shopMinutes } from '@/lib/hours';
+import { priceDeal, promoLive, PROMO_GRACE_MINUTES } from '@/lib/promo';
+import type { Category, Promotion } from '@/lib/types';
 
 type OptionLabel = { group: string; label: string; price_delta_satang: number };
 type LinePayload = {
@@ -30,6 +33,9 @@ type Body = {
   token?: string | null;
   /** An approved reward the customer is spending on this order. */
   redemption_id?: string | null;
+  /** The deal the payment screen applied, and what it said came off. */
+  promotion_id?: string | null;
+  promo_discount_satang?: number | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -42,6 +48,24 @@ export async function POST(req: NextRequest) {
   if (settings && !settings.accepting_orders) {
     return NextResponse.json(
       { error: settings.closed_message?.trim() || 'The shop is not taking orders right now.' },
+      { status: 409 },
+    );
+  }
+
+  // Some of the kitchen starts later than the shop opens. The menu says so and
+  // will not add those dishes, but a cart can be kept from the night before.
+  const now = shopMinutes();
+  const itemIds = [...new Set(body.lines.map((l) => l.item_id))];
+  const { data: rows } = await sb.from('menu_items').select('id, category_id').in('id', itemIds);
+  const catIds = [...new Set((rows ?? []).map((r) => r.category_id as string))];
+  const { data: catRows } = catIds.length
+    ? await sb.from('categories').select('*').in('id', catIds)
+    : { data: [] };
+  const later = ((catRows ?? []) as Category[]).find((c) => !categoryOpen(c, now));
+  if (later) {
+    const at = clock(later.available_from!);
+    return NextResponse.json(
+      { error: `${later.name_th ?? later.name_en} สั่งได้ตั้งแต่ ${at} น. / ${later.name_en} can be ordered from ${at}.` },
       { status: 409 },
     );
   }
@@ -87,6 +111,20 @@ export async function POST(req: NextRequest) {
   // transfer and what is written down cannot drift apart.
   const subtotal = Math.round(body.lines.reduce((n, l) => n + (l.line_total_satang ?? 0), 0));
 
+  // A deal is worked out again here, and only ever for less than or as much as
+  // the customer was shown: what they transferred is what the screen said.
+  let promoOff = 0;
+  let promotion_id: string | null = null;
+  const claimed = Math.max(0, Math.round(body.promo_discount_satang ?? 0));
+  if (claimed > 0 && body.promotion_id) {
+    const { data: promo } = await sb.from('promotions').select('*').eq('id', body.promotion_id).maybeSingle();
+    if (promo && promoLive(promo as Promotion, now, PROMO_GRACE_MINUTES)) {
+      promoOff = Math.min(claimed, priceDeal(promo as Promotion, body.lines).off, subtotal);
+      if (promoOff > 0) promotion_id = (promo as Promotion).id;
+    }
+  }
+  const afterDeal = subtotal - promoOff;
+
   let discount = 0;
   let redemption_id: string | null = null;
   if (body.redemption_id) {
@@ -110,20 +148,23 @@ export async function POST(req: NextRequest) {
     // is left over is not kept. The customer is asked to confirm that on the
     // payment screen before it gets here; what is written down is the part
     // that was actually used, so the three columns always add up.
-    discount = Math.min(voucher.discount_satang, subtotal);
+    discount = Math.min(voucher.discount_satang, afterDeal);
     redemption_id = voucher.id;
   }
 
   // Nothing to transfer, so there is no slip to wait for.
-  const nothingToPay = subtotal - discount === 0;
+  const nothingToPay = afterDeal - discount === 0;
 
   const insOrder = await sb.from('orders').insert({
     customer_id,
     status: 'new',
     subtotal_satang: subtotal,
     discount_satang: discount,
-    total_satang: subtotal - discount,
+    total_satang: afterDeal - discount,
     redemption_id,
+    // Written only when a deal applied, so an order still goes through on a
+    // database that has not had sql/11 run.
+    ...(promoOff > 0 ? { promo_discount_satang: promoOff, promotion_id } : {}),
     fulfilment_mode: body.fulfilment.mode,
     area_slug: body.fulfilment.mode === 'delivery' ? body.fulfilment.area_slug : null,
     contact_name: contactName,
@@ -186,11 +227,12 @@ export async function POST(req: NextRequest) {
   const { data: staff } = await sb.from('staff_alerts').select('line_user_id');
   const items = body.lines.map((l) => `• ${l.qty}× ${l.name}`).join('\n');
   const pickup = body.fulfilment.mode === 'pickup';
-  const paid = subtotal - discount;
+  const paid = afterDeal - discount;
+  const off = promoOff + discount;
   const total = nothingToPay
     ? `฿0 · จ่ายด้วยแต้มทั้งหมด ไม่มีสลิป / paid with points, no slip`
-    : discount > 0
-      ? `฿${(paid / 100).toLocaleString('en-US')} (ลด ฿${(discount / 100).toLocaleString('en-US')})`
+    : off > 0
+      ? `฿${(paid / 100).toLocaleString('en-US')} (ลด ฿${(off / 100).toLocaleString('en-US')})`
       : `฿${(paid / 100).toLocaleString('en-US')}`;
 
   // The shop wants to know who it is before opening the board. The name typed

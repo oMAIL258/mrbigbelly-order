@@ -1,8 +1,8 @@
 'use client';
 import { supabase } from './supabase';
-import type { Category, MenuItem, StoreSettings } from './types';
+import type { Category, MenuItem, Promotion, StoreSettings } from './types';
 
-export type MenuData = { cats: Category[]; items: MenuItem[]; settings: StoreSettings | null };
+export type MenuData = { cats: Category[]; items: MenuItem[]; settings: StoreSettings | null; promos: Promotion[] };
 
 // The menu does not change while somebody is reading it, but it was fetched
 // again every time they came back from a dish, so the whole list arrived from
@@ -28,15 +28,18 @@ export async function fetchMenu(): Promise<MenuData> {
   inFlight = (async () => {
     try {
       const sb = supabase();
-      const [c, i, s] = await Promise.all([
+      const [c, i, s, p] = await Promise.all([
         sb.from('categories').select('*').order('sort'),
         sb.from('menu_items').select('*').eq('is_available', true).order('sort'),
         sb.from('store_settings').select('accepting_orders, closed_message').limit(1).maybeSingle(),
+        // Missing until sql/11 is run, which simply means no deals.
+        sb.from('promotions').select('*').eq('is_active', true),
       ]);
       const next: MenuData = {
         cats: (c.data ?? []) as Category[],
         items: (i.data ?? []) as MenuItem[],
         settings: (s.data ?? null) as StoreSettings | null,
+        promos: (p.data ?? []) as Promotion[],
       };
       // An empty answer is usually a dropped connection rather than a shop with
       // no menu, so what was already known is kept.

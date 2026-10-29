@@ -7,7 +7,10 @@ import { baht } from '@/lib/money';
 import { Header } from '@/components/Header';
 import { useLang } from '@/lib/i18n';
 import { dishTitle, dishSubtitle, optionGroupName, optionLabel } from '@/lib/names';
-import type { MenuItem, OptionGroup, OptionRow } from '@/lib/types';
+import { categoryOpen, clock } from '@/lib/hours';
+import { promoLive } from '@/lib/promo';
+import { useMenuData, useShopMinutes } from '@/lib/use-hours';
+import type { Category, MenuItem, OptionGroup, OptionRow } from '@/lib/types';
 
 export default function DishPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +23,9 @@ export default function DishPage() {
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState('');
+  const [cat, setCat] = useState<Category | null>(null);
+  const now = useShopMinutes();
+  const menu = useMenuData();
 
   useEffect(() => {
     (async () => {
@@ -33,6 +39,10 @@ export default function DishPage() {
       ]);
       if (!it) return;
       setItem(it as MenuItem);
+      // Asked for on its own rather than taken from the menu, because a dish
+      // opened from a shared link has no menu behind it.
+      void sb.from('categories').select('*').eq('id', (it as MenuItem).category_id).maybeSingle()
+        .then(({ data }) => setCat((data ?? null) as Category | null));
       const groupIds = (gs ?? []).map((g: { id: string }) => g.id);
       const { data: os } = groupIds.length
         ? await sb.from('options').select('*').in('group_id', groupIds).order('sort')
@@ -71,8 +81,11 @@ export default function DishPage() {
   );
   const unitPrice = (item?.price_satang ?? 0) + extras.reduce((n, e) => n + e.price_delta_satang, 0);
 
+  const later = cat && !categoryOpen(cat, now) ? clock(cat.available_from!) : null;
+  const deal = item ? (menu?.promos ?? []).find((p) => promoLive(p, now) && p.item_ids.includes(item.id)) : undefined;
+
   function handleAdd() {
-    if (!item || !valid) return;
+    if (!item || !valid || later) return;
     const key = `${item.id}:${extras.map((e) => e.id).sort().join(',')}:${note}`;
     add({
       key,
@@ -104,7 +117,15 @@ export default function DishPage() {
           <div className="text-ink-3 text-sm">{dishSubtitle(lang, item.name_en, item.name_th)}</div>
         )}
         {item.description && <p className="text-ink-2 text-sm mt-2">{item.description}</p>}
-        <div className="mt-2 text-ink font-medium">{baht(item.price_satang)}</div>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-ink font-medium">{baht(item.price_satang)}</span>
+          {deal && (
+            <span className="rounded-full border border-veg text-veg px-2 py-0.5 text-xs font-medium">
+              {t.dealChip(deal.bundle_qty, deal.bundle_price_satang / 100)}
+            </span>
+          )}
+        </div>
+        {deal && <p className="text-veg text-xs mt-1">{lang === 'th' ? deal.title_th : deal.title_en}</p>}
       </div>
 
       {groups.map((g) => {
@@ -164,10 +185,10 @@ export default function DishPage() {
         </div>
         <button
           onClick={handleAdd}
-          disabled={!valid}
+          disabled={!valid || Boolean(later)}
           className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {t.add} {baht(unitPrice * qty)}
+          {later ? t.notYetButton(later) : `${t.add} ${baht(unitPrice * qty)}`}
         </button>
       </div>
     </>
